@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Clone - Home</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for clean typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header with logo and search bar -->
+    <header class="header">
+        <div class="header-left">
+            <!-- Hamburger menu icon -->
+            <div class="menu-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <!-- YouTube Logo -->
+            <a href="index.html" class="logo">
+                <span class="logo-icon">▶</span>
+                YouTube
+            </a>
+        </div>
+        
+        <!-- Search bar -->
+        <div class="search-container">
+            <input type="text" class="search-bar" id="searchInput" placeholder="Search">
+            <button class="search-button" id="searchBtn">
+                <span>🔍</span>
+            </button>
+        </div>
+        
+        <!-- User icons -->
+        <div class="header-right">
+            <span class="upload-icon">📹</span>
+            <span class="notification-icon">🔔</span>
+            <span class="user-avatar">U</span>
+        </div>
+    </header>
+
+    <!-- Main container with sidebar and content -->
+    <div class="main-container">
+        <!-- Sidebar navigation -->
+        <nav class="sidebar" id="sidebar">
+            <a href="index.html" class="sidebar-link active">
+                <span class="link-icon">🏠</span>
+                <span class="link-text">Home</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span class="link-icon">🔥</span>
+                <span class="link-text">Trending</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span class="link-icon">📋</span>
+                <span class="link-text">Subscriptions</span>
+            </a>
+            <hr class="sidebar-divider">
+            <a href="#" class="sidebar-link">
+                <span class="link-icon">📁</span>
+                <span class="link-text">Library</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span class="link-icon">🕐</span>
+                <span class="link-text">History</span>
+            </a>
+            <a href="#" class="sidebar-link">
+                <span class="link-icon">❤️</span>
+                <span class="link-text">Liked Videos</span>
+            </a>
+        </nav>
+
+        <!-- Video grid content -->
+        <main class="content">
+            <!-- Categories filter -->
+            <div class="categories">
+                <button class="category-btn active">All</button>
+                <button class="category-btn">Web Development</button>
+                <button class="category-btn">JavaScript</button>
+                <button class="category-btn">Python</button>
+                <button class="category-btn">CSS</button>
+                <button class="category-btn">React</button>
+                <button class="category-btn">Tutorials</button>
+            </div>
+
+            <!-- Video grid - videos will be rendered here by JavaScript -->
+            <div class="video-grid" id="videoGrid">
+                <!-- Videos are dynamically loaded from data.js -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Load data and scripts -->
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
