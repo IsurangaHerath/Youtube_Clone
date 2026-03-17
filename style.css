@@ -1,9 +1,5 @@
-/* ========================================
-   YouTube Clone - Simple CSS Styles
-   Written like a human developer
-   ======================================== */
+/* YouTube Clone - CSS Styles */
 
-/* Basic Reset and Variables */
 * {
     margin: 0;
     padding: 0;
@@ -11,7 +7,6 @@
 }
 
 :root {
-    /* Color palette - YouTube inspired */
     --bg-dark: #0f0f0f;
     --bg-light: #f9f9f9;
     --bg-card: #ffffff;
@@ -25,7 +20,6 @@
     --sidebar-width: 240px;
 }
 
-/* Global Styles */
 body {
     font-family: 'Roboto', Arial, sans-serif;
     background-color: var(--bg-dark);
@@ -37,10 +31,7 @@ body.video-page {
     background-color: var(--bg-dark);
 }
 
-/* ========================================
-   Header Styles
-   ======================================== */
-
+/* Header */
 .header {
     display: flex;
     align-items: center;
@@ -61,7 +52,6 @@ body.video-page {
     gap: 20px;
 }
 
-/* Hamburger Menu */
 .menu-icon {
     display: flex;
     flex-direction: column;
@@ -76,7 +66,6 @@ body.video-page {
     background-color: var(--text-primary);
 }
 
-/* Logo */
 .logo {
     display: flex;
     align-items: center;
@@ -92,7 +81,7 @@ body.video-page {
     font-size: 24px;
 }
 
-/* Search Bar */
+/* Search */
 .search-container {
     display: flex;
     flex: 0 1 600px;
@@ -132,7 +121,6 @@ body.video-page {
     background-color: #333333;
 }
 
-/* Header Right */
 .header-right {
     display: flex;
     align-items: center;
@@ -159,19 +147,13 @@ body.video-page {
     cursor: pointer;
 }
 
-/* ========================================
-   Main Container (Sidebar + Content)
-   ======================================== */
-
+/* Main Layout */
 .main-container {
     display: flex;
     margin-top: 56px;
 }
 
-/* ========================================
-   Sidebar Styles
-   ======================================== */
-
+/* Sidebar */
 .sidebar {
     width: var(--sidebar-width);
     background-color: var(--bg-dark);
@@ -217,10 +199,7 @@ body.video-page {
     margin: 12px 0;
 }
 
-/* ========================================
-   Content Area
-   ======================================== */
-
+/* Content */
 .content {
     margin-left: var(--sidebar-width);
     padding: 24px;
@@ -257,17 +236,13 @@ body.video-page {
     color: var(--bg-dark);
 }
 
-/* ========================================
-   Video Grid
-   ======================================== */
-
+/* Video Grid */
 .video-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
 }
 
-/* Video Card */
 .video-card {
     cursor: pointer;
     transition: transform 0.2s;
@@ -342,10 +317,7 @@ body.video-page {
     color: var(--text-primary);
 }
 
-/* ========================================
-   Video Page Styles
-   ======================================== */
-
+/* Video Page */
 .video-main-container {
     display: flex;
     margin-top: 56px;
@@ -387,7 +359,7 @@ body.video-page {
     margin-bottom: 16px;
 }
 
-/* Video Actions */
+/* Action Buttons */
 .video-actions {
     display: flex;
     justify-content: space-between;
@@ -491,7 +463,7 @@ body.video-page {
     line-height: 1.6;
 }
 
-/* Comments Section */
+/* Comments */
 .comments-section {
     margin-top: 24px;
 }
@@ -585,10 +557,7 @@ body.video-page {
     color: var(--text-primary);
 }
 
-/* ========================================
-   Related Videos Sidebar
-   ======================================== */
-
+/* Related Videos */
 .related-videos {
     width: 400px;
     flex-shrink: 0;
@@ -636,10 +605,7 @@ body.video-page {
     color: var(--text-secondary);
 }
 
-/* ========================================
-   Responsive Styles
-   ======================================== */
-
+/* Responsive */
 @media (max-width: 1200px) {
     .related-videos {
         width: 320px;

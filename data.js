@@ -1,5 +1,5 @@
 // Sample video data for the YouTube clone
-// This simulates a database of videos
+// Each video has basic info like title, channel, views, etc.
 
 const videos = [
     {
@@ -124,7 +124,7 @@ const videos = [
     }
 ];
 
-// Sample comments data
+// Sample comments for videos
 const comments = [
     { id: 1, user: "Alex Johnson", avatar: "https://picsum.photos/seed/user1/40/40", text: "Great tutorial! Very easy to follow along.", time: "1 day ago", likes: 234 },
     { id: 2, user: "Sarah Miller", avatar: "https://picsum.photos/seed/user2/40/40", text: "This helped me understand so much better than the docs!", time: "2 days ago", likes: 189 },
