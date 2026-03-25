@@ -10,7 +10,9 @@ const videos = [
         views: "1.2M views",
         uploaded: "2 days ago",
         duration: "15:30",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Programming",
+        uploadDate: "2024-03-23"
     },
     {
         id: 2,
@@ -20,7 +22,9 @@ const videos = [
         views: "890K views",
         uploaded: "1 week ago",
         duration: "22:45",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Web Dev",
+        uploadDate: "2024-03-18"
     },
     {
         id: 3,
@@ -30,7 +34,9 @@ const videos = [
         views: "2.1M views",
         uploaded: "3 days ago",
         duration: "45:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Programming",
+        uploadDate: "2024-03-22"
     },
     {
         id: 4,
@@ -40,7 +46,9 @@ const videos = [
         views: "567K views",
         uploaded: "5 days ago",
         duration: "18:20",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Design",
+        uploadDate: "2024-03-20"
     },
     {
         id: 5,
@@ -50,7 +58,9 @@ const videos = [
         views: "3.4M views",
         uploaded: "1 month ago",
         duration: "1:30:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Programming",
+        uploadDate: "2024-02-25"
     },
     {
         id: 6,
@@ -60,7 +70,9 @@ const videos = [
         views: "445K views",
         uploaded: "2 weeks ago",
         duration: "35:15",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Web Dev",
+        uploadDate: "2024-03-11"
     },
     {
         id: 7,
@@ -70,7 +82,9 @@ const videos = [
         views: "780K views",
         uploaded: "4 days ago",
         duration: "55:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Backend",
+        uploadDate: "2024-03-21"
     },
     {
         id: 8,
@@ -80,7 +94,9 @@ const videos = [
         views: "1.8M views",
         uploaded: "2 weeks ago",
         duration: "28:30",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Programming",
+        uploadDate: "2024-03-11"
     },
     {
         id: 9,
@@ -90,7 +106,9 @@ const videos = [
         views: "920K views",
         uploaded: "1 week ago",
         duration: "42:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Data Science",
+        uploadDate: "2024-03-18"
     },
     {
         id: 10,
@@ -100,7 +118,9 @@ const videos = [
         views: "634K views",
         uploaded: "3 weeks ago",
         duration: "25:45",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Web Dev",
+        uploadDate: "2024-03-04"
     },
     {
         id: 11,
@@ -110,7 +130,9 @@ const videos = [
         views: "412K views",
         uploaded: "5 days ago",
         duration: "1:15:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Design",
+        uploadDate: "2024-03-20"
     },
     {
         id: 12,
@@ -120,7 +142,9 @@ const videos = [
         views: "1.5M views",
         uploaded: "1 week ago",
         duration: "32:00",
-        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+        category: "Programming",
+        uploadDate: "2024-03-18"
     }
 ];
 

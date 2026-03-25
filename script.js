@@ -14,11 +14,11 @@ function createVideoCard(video) {
     return `
         <div class="video-card" onclick="openVideo(${video.id})">
             <div class="thumbnail-container">
-                <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
+                <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail" loading="lazy" onerror="this.src='https://picsum.photos/320/180?random=${video.id}'">
                 <span class="duration">${video.duration}</span>
             </div>
             <div class="video-info">
-                <img src="${video.thumbnail}" alt="" class="channel-avatar-small">
+                <img src="${video.thumbnail}" alt="" class="channel-avatar-small" loading="lazy" onerror="this.src='https://picsum.photos/36/36?random=${video.id}'">
                 <div class="video-details">
                     <h3 class="video-card-title">${video.title}</h3>
                     <p class="channel-name">${video.channel}</p>
@@ -27,6 +27,81 @@ function createVideoCard(video) {
             </div>
         </div>
     `;
+}
+
+// Create skeleton loading card
+function createSkeletonCard() {
+    return `
+        <div class="video-card skeleton">
+            <div class="thumbnail-container">
+                <div class="skeleton-thumbnail"></div>
+                <span class="duration skeleton-duration"></span>
+            </div>
+            <div class="video-info">
+                <div class="skeleton-avatar"></div>
+                <div class="video-details">
+                    <div class="skeleton-title"></div>
+                    <div class="skeleton-channel"></div>
+                    <div class="skeleton-meta"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Show skeleton loading cards
+function showSkeletonLoading(count = 8) {
+    if (!videoGrid) return;
+    videoGrid.innerHTML = Array(count).fill(null).map(() => createSkeletonCard()).join('');
+}
+
+// Filter videos by category
+function filterByCategory(category) {
+    if (category === 'all') {
+        renderVideos(videos);
+        return;
+    }
+    const filtered = videos.filter(video => video.category === category);
+    renderVideos(filtered);
+}
+
+// Sort videos by criteria
+function sortVideos(sortBy) {
+    let sortedVideos = [...videos];
+    
+    switch(sortBy) {
+        case 'date':
+            sortedVideos.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+            break;
+        case 'views':
+            sortedVideos.sort((a, b) => parseInt(b.views.replace(/[^0-9]/g, '')) - parseInt(a.views.replace(/[^0-9]/g, '')));
+            break;
+        case 'alphabetical':
+            sortedVideos.sort((a, b) => a.title.localeCompare(b.title));
+            break;
+    }
+    
+    renderVideos(sortedVideos);
+}
+
+// Lazy load images with Intersection Observer
+function setupLazyLoading() {
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                if (img.dataset.src) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                }
+                observer.unobserve(img);
+            }
+        });
+    }, { rootMargin: '50px' });
+
+    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+        imageObserver.observe(img);
+    });
 }
 
 // Render videos to the page
@@ -183,8 +258,16 @@ function formatNumber(num) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     if (videoGrid) {
-        renderVideos();
-        handleSearch();
+        // Show skeleton loading first
+        showSkeletonLoading(8);
+        
+        // Simulate network delay for demo (remove in production)
+        setTimeout(() => {
+            renderVideos();
+            handleSearch();
+            setupLazyLoading();
+            setupCategoryFilters();
+        }, 500);
     }
     
     if (document.getElementById('videoFrame')) {
@@ -193,3 +276,33 @@ document.addEventListener('DOMContentLoaded', () => {
         setupSubscribeButton();
     }
 });
+
+// Setup category filter buttons
+function setupCategoryFilters() {
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    
+    categoryButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all buttons
+            categoryButtons.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            btn.classList.add('active');
+            
+            // Get category from button text
+            const category = btn.textContent;
+            
+            // Map button text to category values
+            const categoryMap = {
+                'All': 'all',
+                'Web Development': 'Web Dev',
+                'JavaScript': 'Programming',
+                'Python': 'Programming',
+                'CSS': 'Web Dev',
+                'React': 'Web Dev',
+                'Tutorials': 'all'
+            };
+            
+            filterByCategory(categoryMap[category] || category);
+        });
+    });
+}
