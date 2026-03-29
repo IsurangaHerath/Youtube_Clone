@@ -9,10 +9,10 @@ function getUrlParameter(name) {
 // Get the video grid element
 const videoGrid = document.getElementById('videoGrid');
 
-// Create HTML for a video card
+// Create HTML for a video card (modern approach with data attributes)
 function createVideoCard(video) {
     return `
-        <div class="video-card" onclick="openVideo(${video.id})">
+        <article class="video-card" data-video-id="${video.id}" tabindex="0" role="button" aria-label="Watch ${video.title}">
             <div class="thumbnail-container">
                 <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail" loading="lazy" onerror="this.src='https://picsum.photos/320/180?random=${video.id}'">
                 <span class="duration">${video.duration}</span>
@@ -25,8 +25,54 @@ function createVideoCard(video) {
                     <p class="video-meta">${video.views} • ${video.uploaded}</p>
                 </div>
             </div>
-        </div>
+        </article>
     `;
+}
+
+// Event delegation for video cards (more efficient than inline handlers)
+function setupVideoCardListeners() {
+    const grid = document.getElementById('videoGrid');
+    if (!grid) return;
+    
+    grid.addEventListener('click', (e) => {
+        const card = e.target.closest('.video-card');
+        if (card) {
+            const videoId = card.dataset.videoId;
+            navigateToVideo(videoId);
+        }
+    });
+    
+    // Add keyboard support (Enter/Space to open video)
+    grid.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            const card = e.target.closest('.video-card');
+            if (card) {
+                e.preventDefault();
+                const videoId = card.dataset.videoId;
+                navigateToVideo(videoId);
+            }
+        }
+    });
+}
+
+// Modern hash-based routing for navigation
+function navigateToVideo(videoId) {
+    window.location.hash = `video/${videoId}`;
+}
+
+// Parse hash route (modern routing)
+function parseRoute() {
+    const hash = window.location.hash.slice(1); // Remove leading '#'
+    if (hash.startsWith('video/')) {
+        const videoId = hash.split('/')[1];
+        return { page: 'video', id: videoId };
+    }
+    return { page: 'home', id: null };
+}
+
+// Legacy openVideo for backwards compatibility
+function openVideo(videoId) {
+    window.location.href = `video.html?id=${videoId}`;
 }
 
 // Create skeleton loading card
@@ -132,9 +178,18 @@ function openVideo(videoId) {
     window.location.href = `video.html?id=${videoId}`;
 }
 
-// Load video details on video page
+// Load video details on video page (modern hash routing support)
 function loadVideoDetails() {
-    const videoId = parseInt(getUrlParameter('id'));
+    // Support both hash-based routing (#/video/1) and query params (?id=1)
+    const route = parseRoute();
+    let videoId = route.id || getUrlParameter('id');
+    
+    if (!videoId) {
+        document.getElementById('videoTitle').textContent = 'Video not found';
+        return;
+    }
+    
+    videoId = parseInt(videoId);
     const video = videos.find(v => v.id === videoId);
     
     if (!video) {
@@ -159,7 +214,7 @@ function loadVideoDetails() {
     renderComments();
 }
 
-// Load related videos in sidebar
+// Load related videos in sidebar (modern event handling)
 function loadRelatedVideos(currentVideoId) {
     const relatedContainer = document.getElementById('relatedVideos');
     if (!relatedContainer) return;
@@ -167,15 +222,50 @@ function loadRelatedVideos(currentVideoId) {
     const related = videos.filter(v => v.id !== currentVideoId).slice(0, 10);
     
     relatedContainer.innerHTML = related.map(video => `
-        <div class="related-video-item" onclick="openVideo(${video.id})">
-            <img src="${video.thumbnail}" alt="" class="related-thumbnail">
+        <article class="related-video-item" data-video-id="${video.id}" tabindex="0" role="button" aria-label="Watch ${video.title}">
+            <img src="${video.thumbnail}" alt="" class="related-thumbnail" loading="lazy">
             <div class="related-info">
                 <h4 class="related-video-title">${video.title}</h4>
                 <p class="related-channel-name">${video.channel}</p>
                 <p class="related-meta">${video.views} • ${video.uploaded}</p>
             </div>
-        </div>
+        </article>
     `).join('');
+}
+
+// Setup related videos click handling
+function setupRelatedVideosListener() {
+    const container = document.getElementById('relatedVideos');
+    if (!container) return;
+    
+    container.addEventListener('click', (e) => {
+        const item = e.target.closest('.related-video-item');
+        if (item) {
+            const videoId = item.dataset.videoId;
+            navigateToVideo(videoId);
+        }
+    });
+    
+    container.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            const item = e.target.closest('.related-video-item');
+            if (item) {
+                e.preventDefault();
+                const videoId = item.dataset.videoId;
+                navigateToVideo(videoId);
+            }
+        }
+    });
+}
+
+// Listen for hash changes (modern SPA routing)
+function setupHashRouting() {
+    window.addEventListener('hashchange', () => {
+        const route = parseRoute();
+        if (route.page === 'video' && document.getElementById('videoFrame')) {
+            loadVideoDetails();
+        }
+    });
 }
 
 // Render comments
@@ -255,25 +345,37 @@ function formatNumber(num) {
     return num.toString();
 }
 
-// Initialize on page load
+// Initialize on page load (modern approach)
 document.addEventListener('DOMContentLoaded', () => {
-    if (videoGrid) {
-        // Show skeleton loading first
+    // Check if in hash route mode
+    const route = parseRoute();
+    
+    if (route.page === 'video' && document.getElementById('videoFrame')) {
+        // Video page - load with hash routing
+        loadVideoDetails();
+        setupLikeButton();
+        setupSubscribeButton();
+        setupRelatedVideosListener();
+        setupHashRouting();
+    } else if (videoGrid) {
+        // Home page
         showSkeletonLoading(8);
         
-        // Simulate network delay for demo (remove in production)
         setTimeout(() => {
             renderVideos();
             handleSearch();
             setupLazyLoading();
             setupCategoryFilters();
+            setupVideoCardListeners(); // Modern event delegation
         }, 500);
     }
     
-    if (document.getElementById('videoFrame')) {
-        loadVideoDetails();
-        setupLikeButton();
-        setupSubscribeButton();
+    // Handle initial hash load
+    if (window.location.hash) {
+        const route = parseRoute();
+        if (route.page === 'video') {
+            loadVideoDetails();
+        }
     }
 });
 
