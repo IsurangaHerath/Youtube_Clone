@@ -156,20 +156,211 @@ function renderVideos(videoList = videos) {
     videoGrid.innerHTML = videoList.map(createVideoCard).join('');
 }
 
-// Handle search functionality
+// Debounce function to limit rapid API calls
+function debounce(func, delay = 300) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+// Search history management with localStorage
+const SearchHistory = {
+    STORAGE_KEY: 'youtube_clone_search_history',
+    MAX_ITEMS: 10,
+    
+    getHistory() {
+        try {
+            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
+        } catch {
+            return [];
+        }
+    },
+    
+    addToHistory(query) {
+        if (!query.trim()) return;
+        let history = this.getHistory();
+        history = history.filter(item => item.toLowerCase() !== query.toLowerCase());
+        history.unshift(query);
+        history = history.slice(0, this.MAX_ITEMS);
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
+    },
+    
+    clearHistory() {
+        localStorage.removeItem(this.STORAGE_KEY);
+    },
+    
+    getMatchingHistory(searchTerm) {
+        if (!searchTerm) return this.getHistory();
+        return this.getHistory().filter(item => 
+            item.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+};
+
+// Highlight matching text in results
+function highlightText(text, searchTerm) {
+    if (!searchTerm) return text;
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+// Get search suggestions (history + video titles)
+function getSearchSuggestions(searchTerm) {
+    const suggestions = [];
+    const historyMatches = SearchHistory.getMatchingHistory(searchTerm);
+    suggestions.push(...historyMatches.map(text => ({ type: 'history', text })));
+    
+    if (searchTerm) {
+        const titleMatches = videos
+            .filter(v => v.title.toLowerCase().includes(searchTerm.toLowerCase()))
+            .slice(0, 5)
+            .map(v => ({ type: 'video', text: v.title }));
+        suggestions.push(...titleMatches);
+    }
+    
+    return suggestions.slice(0, 8);
+}
+
+// Render search suggestions dropdown
+function renderSuggestions(suggestions, searchTerm) {
+    const container = document.getElementById('searchSuggestions');
+    if (!container) return;
+    
+    if (suggestions.length === 0) {
+        container.classList.remove('active');
+        container.innerHTML = '';
+        return;
+    }
+    
+    container.innerHTML = suggestions.map((item, index) => {
+        const icon = item.type === 'history' ? '🕐' : '🔍';
+        const highlightedText = highlightText(item.text, searchTerm);
+        return `
+            <div class="suggestion-item ${item.type}" data-index="${index}" data-text="${item.text}">
+                <span class="suggestion-icon">${icon}</span>
+                <span class="suggestion-text">${highlightedText}</span>
+                ${item.type === 'history' ? '<button class="suggestion-remove" data-text="' + item.text + '" title="Remove">×</button>' : ''}
+            </div>
+        `;
+    }).join('');
+    
+    container.classList.add('active');
+}
+
+// Handle search functionality (modern with debounce, suggestions, history)
 function handleSearch() {
     const searchInput = document.getElementById('searchInput');
+    const suggestionsContainer = document.getElementById('searchSuggestions');
     if (!searchInput) return;
     
-    searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        
+    let selectedIndex = -1;
+    let currentSuggestions = [];
+    
+    const performSearch = debounce((searchTerm) => {
         const filteredVideos = videos.filter(video => 
-            video.title.toLowerCase().includes(searchTerm) ||
-            video.channel.toLowerCase().includes(searchTerm)
+            video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            video.channel.toLowerCase().includes(searchTerm.toLowerCase())
         );
         
         renderVideos(filteredVideos);
+        
+        if (searchTerm) {
+            currentSuggestions = getSearchSuggestions(searchTerm);
+            renderSuggestions(currentSuggestions, searchTerm);
+        } else {
+            currentSuggestions = SearchHistory.getHistory().map(text => ({ type: 'history', text }));
+            renderSuggestions(currentSuggestions, '');
+        }
+        selectedIndex = -1;
+    }, 250);
+    
+    searchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.trim();
+        performSearch(searchTerm);
+    });
+    
+    searchInput.addEventListener('focus', () => {
+        const searchTerm = searchInput.value.trim();
+        if (searchTerm) {
+            currentSuggestions = getSearchSuggestions(searchTerm);
+            renderSuggestions(currentSuggestions, searchTerm);
+        } else {
+            currentSuggestions = SearchHistory.getHistory().map(text => ({ type: 'history', text }));
+            renderSuggestions(currentSuggestions, '');
+        }
+    });
+    
+    searchInput.addEventListener('keydown', (e) => {
+        if (!suggestionsContainer.classList.contains('active')) return;
+        
+        const items = suggestionsContainer.querySelectorAll('.suggestion-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            updateSelectedSuggestion(items, selectedIndex);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            updateSelectedSuggestion(items, selectedIndex);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            const selectedItem = currentSuggestions[selectedIndex];
+            if (selectedItem) {
+                searchInput.value = selectedItem.text;
+                SearchHistory.addToHistory(selectedItem.text);
+                suggestionsContainer.classList.remove('active');
+                renderVideos(videos.filter(v => 
+                    v.title.toLowerCase().includes(selectedItem.text.toLowerCase()) ||
+                    v.channel.toLowerCase().includes(selectedItem.text.toLowerCase())
+                ));
+            }
+        } else if (e.key === 'Escape') {
+            suggestionsContainer.classList.remove('active');
+            searchInput.blur();
+        }
+    });
+    
+    function updateSelectedSuggestion(items, index) {
+        items.forEach((item, i) => {
+            item.classList.toggle('selected', i === index);
+        });
+    }
+    
+    suggestionsContainer.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.suggestion-remove');
+        if (removeBtn) {
+            e.stopPropagation();
+            const text = removeBtn.dataset.text;
+            let history = SearchHistory.getHistory();
+            history = history.filter(item => item !== text);
+            localStorage.setItem(SearchHistory.STORAGE_KEY, JSON.stringify(history));
+            const searchTerm = searchInput.value.trim();
+            currentSuggestions = getSearchSuggestions(searchTerm);
+            renderSuggestions(currentSuggestions, searchTerm);
+            return;
+        }
+        
+        const item = e.target.closest('.suggestion-item');
+        if (item) {
+            const text = item.dataset.text;
+            searchInput.value = text;
+            SearchHistory.addToHistory(text);
+            suggestionsContainer.classList.remove('active');
+            renderVideos(videos.filter(v => 
+                v.title.toLowerCase().includes(text.toLowerCase()) ||
+                v.channel.toLowerCase().includes(text.toLowerCase())
+            ));
+        }
+    });
+    
+    document.addEventListener('click', (e) => {
+        const container = document.getElementById('searchContainer');
+        if (container && !container.contains(e.target)) {
+            suggestionsContainer.classList.remove('active');
+        }
     });
 }
 
