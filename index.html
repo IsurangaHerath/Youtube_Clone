@@ -11,7 +11,7 @@
     <!-- Header with logo and search -->
     <header class="header">
         <div class="header-left">
-            <div class="menu-icon">
+            <div class="menu-icon" id="menuToggle" role="button" tabindex="0" aria-label="Toggle sidebar" aria-expanded="false">
                 <span></span>
                 <span></span>
                 <span></span>
@@ -38,8 +38,11 @@
     </header>
 
     <!-- Main layout with sidebar -->
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
     <div class="main-container">
-        <nav class="sidebar" id="sidebar">
+        <nav class="sidebar" id="sidebar" aria-label="Main navigation">
             <a href="index.html" class="sidebar-link active">
                 <span class="link-icon">🏠</span>
                 <span class="link-text">Home</span>

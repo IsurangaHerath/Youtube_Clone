@@ -538,6 +538,9 @@ function formatNumber(num) {
 
 // Initialize on page load (modern approach)
 document.addEventListener('DOMContentLoaded', () => {
+    // Setup sidebar toggle on all pages (Week 7)
+    setupSidebarToggle();
+    
     // Check if in hash route mode
     const route = parseRoute();
     
@@ -598,4 +601,155 @@ function setupCategoryFilters() {
             filterByCategory(categoryMap[category] || category);
         });
     });
+}
+
+// =============================================
+// Week 7: Sidebar Navigation Toggle System
+// =============================================
+
+// Sidebar state management
+const SidebarState = {
+    STORAGE_KEY: 'youtube_clone_sidebar_collapsed',
+    
+    isCollapsed() {
+        try {
+            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || false;
+        } catch {
+            return false;
+        }
+    },
+    
+    setCollapsed(collapsed) {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(collapsed));
+    }
+};
+
+// Get current screen size breakpoint
+function getBreakpoint() {
+    const width = window.innerWidth;
+    if (width <= 768) return 'mobile';
+    if (width <= 992) return 'tablet';
+    return 'desktop';
+}
+
+// Setup sidebar toggle functionality
+function setupSidebarToggle() {
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const mainContainer = document.querySelector('.main-container');
+    
+    if (!menuToggle || !sidebar) return;
+    
+    let sidebarOpen = false; // For mobile/tablet
+    
+    // Restore desktop sidebar state
+    if (getBreakpoint() === 'desktop' && SidebarState.isCollapsed()) {
+        sidebar.classList.add('collapsed');
+        if (mainContainer) mainContainer.classList.add('sidebar-collapsed');
+    }
+    
+    // Toggle sidebar based on current breakpoint
+    function toggleSidebar() {
+        const breakpoint = getBreakpoint();
+        
+        if (breakpoint === 'mobile') {
+            // Mobile: slide sidebar in/out
+            sidebarOpen = !sidebarOpen;
+            sidebar.classList.toggle('mobile-open', sidebarOpen);
+            if (overlay) overlay.classList.toggle('active', sidebarOpen);
+            menuToggle.classList.toggle('active', sidebarOpen);
+            menuToggle.setAttribute('aria-expanded', sidebarOpen.toString());
+            
+            // Prevent body scroll when sidebar is open
+            document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+            
+        } else if (breakpoint === 'tablet') {
+            // Tablet: expand sidebar overlay on top of content
+            sidebarOpen = !sidebarOpen;
+            sidebar.classList.toggle('expanded', sidebarOpen);
+            if (overlay) overlay.classList.toggle('active', sidebarOpen);
+            menuToggle.classList.toggle('active', sidebarOpen);
+            menuToggle.setAttribute('aria-expanded', sidebarOpen.toString());
+            
+        } else {
+            // Desktop: collapse/expand sidebar inline
+            const isCollapsed = sidebar.classList.toggle('collapsed');
+            if (mainContainer) mainContainer.classList.toggle('sidebar-collapsed', isCollapsed);
+            SidebarState.setCollapsed(isCollapsed);
+            menuToggle.setAttribute('aria-expanded', (!isCollapsed).toString());
+        }
+    }
+    
+    // Close sidebar (for mobile/tablet)
+    function closeSidebar() {
+        sidebarOpen = false;
+        sidebar.classList.remove('mobile-open', 'expanded');
+        if (overlay) overlay.classList.remove('active');
+        menuToggle.classList.remove('active');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+    }
+    
+    // Click handler for menu toggle
+    menuToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSidebar();
+    });
+    
+    // Keyboard support for menu toggle (Enter/Space)
+    menuToggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleSidebar();
+        }
+    });
+    
+    // Click overlay to close sidebar
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+    
+    // Close sidebar on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebarOpen) {
+            closeSidebar();
+        }
+    });
+    
+    // Close mobile/tablet sidebar when a link is clicked
+    sidebar.addEventListener('click', (e) => {
+        const link = e.target.closest('.sidebar-link');
+        if (link && (getBreakpoint() === 'mobile' || getBreakpoint() === 'tablet')) {
+            closeSidebar();
+        }
+    });
+    
+    // Handle window resize - reset sidebar state when crossing breakpoints
+    let lastBreakpoint = getBreakpoint();
+    
+    window.addEventListener('resize', debounce(() => {
+        const currentBreakpoint = getBreakpoint();
+        
+        if (currentBreakpoint !== lastBreakpoint) {
+            // Reset mobile/tablet states when changing breakpoints
+            sidebar.classList.remove('mobile-open', 'expanded');
+            if (overlay) overlay.classList.remove('active');
+            menuToggle.classList.remove('active');
+            document.body.style.overflow = '';
+            sidebarOpen = false;
+            
+            // Restore desktop collapsed state
+            if (currentBreakpoint === 'desktop') {
+                const isCollapsed = SidebarState.isCollapsed();
+                sidebar.classList.toggle('collapsed', isCollapsed);
+                if (mainContainer) mainContainer.classList.toggle('sidebar-collapsed', isCollapsed);
+            } else {
+                sidebar.classList.remove('collapsed');
+                if (mainContainer) mainContainer.classList.remove('sidebar-collapsed');
+            }
+            
+            lastBreakpoint = currentBreakpoint;
+        }
+    }, 150));
 }
