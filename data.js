@@ -1,3 +1,28 @@
+/*
+ * data.js - all the sample data for the site
+ *
+ * The `videos` array drives everything: the home grid, search results,
+ * related videos and the watch page. Each video has:
+ *
+ *   id          - unique number used in the url hash (#/watch/12)
+ *   title       - video title
+ *   channel     - display name of the channel
+ *   channelId   - internal id, used to track subscriptions
+ *   subscribers - total subscribers of the channel
+ *   category    - used for the filter chips on the home page
+ *   duration    - shown as a badge on the thumbnail ("LIVE" for streams)
+ *   views       - raw number, formatted by script.js
+ *   uploaded    - relative time shown to the user
+ *   uploadDate  - ISO date, useful if we ever add sorting by date
+ *   likes       - raw like count
+ *   thumbnail   - image shown on the card
+ *   videoUrl    - youtube embed url for the player iframe
+ *   description - shown under the player, "\n" becomes a line break
+ *
+ * The `comments` array is a pool of generic comments. getCommentsForVideo()
+ * picks a deterministic subset for each video so they don't all look the same.
+ */
+
 const videos = [
   {
     id: 1,
@@ -204,6 +229,8 @@ const videos = [
   }
 ];
 
+// A shared pool of comments. Each video shows a different slice of this
+// list so the comment section always looks populated but varied.
 const comments = [
   { user: "Alex Johnson", time: "1 day ago", likes: 342, text: "This is exactly what I needed. The pacing is perfect and the examples are super clear." },
   { user: "Sarah Miller", time: "2 days ago", likes: 189, text: "Finally a tutorial that explains things simply without skipping the important details." },
@@ -217,6 +244,8 @@ const comments = [
   { user: "Hana Kim", time: "1 month ago", likes: 120, text: "Quality content. The timestamps in the description are super helpful." }
 ];
 
+// Returns the same 5 comments every time for a given video id, so each
+// video feels like it has its own comment section.
 function getCommentsForVideo(videoId) {
   const start = (videoId * 5) % comments.length;
   return [...comments.slice(start), ...comments.slice(0, start)].slice(0, 5);

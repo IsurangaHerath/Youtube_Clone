@@ -1,14 +1,33 @@
+/*
+ * script.js - all the logic for the YouTube clone
+ *
+ * This handles everything on the page: the hash router, rendering the
+ * home grid and the watch page, search with suggestions, and all the
+ * little interactive bits like likes, subscribes and comments.
+ *
+ * A lot of things are saved to localStorage so that the app remembers
+ * your history, liked videos, subscriptions and so on between visits.
+ */
+
+// ---------- Tiny helper functions ----------
+
+// Shortcut for document.querySelector - saves typing all over the place.
 const $ = (sel, root = document) => root.querySelector(sel);
+
+// Same but returns all matches as a real array so we can use .forEach.
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+// Delays calling a function until the user stops typing/clicking.
+// Used for the search bar so we don't re-filter on every single keypress.
 function debounce(fn, ms = 250) {
-  let t;
+  let timer;
   return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), ms);
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
   };
 }
 
+// Turns a big number into a short readable one, e.g. 1200000 -> "1.2M".
 function formatCount(n) {
   if (n >= 1e9) return +(n / 1e9).toFixed(1) + 'B';
   if (n >= 1e6) return +(n / 1e6).toFixed(1) + 'M';
@@ -16,6 +35,8 @@ function formatCount(n) {
   return String(n);
 }
 
+// Escapes HTML special characters so user input (like comments) can never
+// inject markup into the page.
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({
     '&': '&amp;',
@@ -26,25 +47,33 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// Turns any string into a number between 0-359 that we use as a hue.
+// Every channel gets its own avatar colour based on its name.
 function hue(str) {
   let h = 0;
   for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) % 360;
   return h;
 }
 
+// Grabs the first letter of a name so we can use it as an avatar.
 function initial(str) {
   return (String(str).trim()[0] || 'Y').toUpperCase();
 }
 
+// Builds a CSS hsl() colour string from h/s/l values.
 function hsl(h, s, l) {
   return `hsl(${h},${Math.round(s * 100)}%,${Math.round(l * 100)}%)`;
 }
 
+// Generates a simple SVG thumbnail as a data URL. This is used when the
+// normal thumbnail image fails to load so the card still looks decent.
 function fallbackThumb(id) {
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><defs><linearGradient id='g${id}' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${hsl(hue('a' + id), 0.35, 0.24)}'/><stop offset='1' stop-color='${hsl(hue('b' + id), 0.5, 0.14)}'/></linearGradient></defs><rect width='640' height='360' fill='url(#g${id})'/><text x='320' y='196' font-size='42' fill='#ffffffcc' text-anchor='middle' font-family='Arial, sans-serif'>Video ${id}</text></svg>`;
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
+// Every SVG icon used in the app, stored as strings so we can drop them
+// into templates easily. Most use currentColor so they follow the theme.
 const icons = {
   like: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h3z"/><path d="M7 10l5-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-1 7a2 2 0 0 1-2 2H7"/></svg>',
   dislike: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3z"/><path d="M17 14l-5 7a2 2 0 0 1-2-2v-4H5a2 2 0 0 1-2-2l1-7a2 2 0 0 1 2-2h11"/></svg>',
@@ -59,7 +88,12 @@ const icons = {
   moon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
 };
 
+// ---------- localStorage wrapper ----------
+
+// Small helper object around localStorage so all the data is stored under
+// the "ytc." prefix and we never have to write try/catch everywhere.
 const store = {
+  // Read an array from storage, fallback if missing or corrupted.
   get(ns, fallback = []) {
     try {
       const v = JSON.parse(localStorage.getItem('ytc.' + ns));
@@ -68,12 +102,18 @@ const store = {
       return fallback;
     }
   },
+
+  // Save an array to storage.
   set(ns, value) {
     localStorage.setItem('ytc.' + ns, JSON.stringify(value));
   },
+
+  // Check whether an id exists inside a stored list.
   has(ns, id) {
     return this.get(ns).includes(id);
   },
+
+  // Add/remove an id from a list and return true if it was added.
   toggle(ns, id) {
     const arr = this.get(ns);
     const i = arr.indexOf(id);
@@ -82,6 +122,8 @@ const store = {
     this.set(ns, arr);
     return i === -1;
   },
+
+  // Add an id to the front of a list, skipping duplicates.
   push(ns, id) {
     const arr = this.get(ns);
     if (!arr.includes(id)) {
@@ -91,7 +133,13 @@ const store = {
   }
 };
 
+// ---------- Routing ----------
+
+// The different pages of the app (all rendered inside #app). The order
+// here also matches the sidebar so highlighting stays in sync.
 const PAGES = ['home', 'trending', 'subscriptions', 'library', 'history', 'liked'];
+
+// Human readable titles used for both the document title and the sidebar.
 const PAGE_TITLES = {
   home: 'Home',
   trending: 'Trending',
@@ -101,23 +149,31 @@ const PAGE_TITLES = {
   liked: 'Liked videos'
 };
 
+// Remember which category filter is active on the home page.
 let currentCategory = 'All';
+
+// Timer handle for the toast notification.
 let toastTimer;
 
+// Changes the url hash, which triggers the router. Pass an id for watch pages.
 function navigate(page, id) {
   location.hash = id != null ? `#/${page}/${id}` : `#/${page}`;
 }
 
+// Reads the current hash and splits it into page name + id, e.g. "#/watch/5".
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [name = 'home', id] = raw.split('/');
   return { name: name || 'home', id };
 }
 
+// Highlights the sidebar link that matches the current page.
 function setActiveSidebar(page) {
   $$('.side-link').forEach((link) => link.classList.toggle('active', link.dataset.route === page));
 }
 
+// The main router. Decides which view to render based on the hash and
+// closes any open mobile menus before switching.
 function resolveRoute() {
   const { name, id } = parseRoute();
   document.body.classList.remove('sidebar-open', 'search-open');
@@ -135,6 +191,8 @@ function resolveRoute() {
   renderHome(page);
 }
 
+// Returns the starting list of videos for each sidebar page.
+// Trending sorts by views, the rest filter from stored activity.
 function getBaseVideos(page) {
   switch (page) {
     case 'trending':
@@ -152,6 +210,7 @@ function getBaseVideos(page) {
   }
 }
 
+// Returns the [title, description] to show when a page has nothing in it.
 function pageEmpty(page) {
   const list = getBaseVideos(page);
   if (page === 'subscriptions')
@@ -162,33 +221,9 @@ function pageEmpty(page) {
   return list.length ? null : ['No videos found', 'Try a different category.'];
 }
 
-function skeletonCards(n = 8) {
-  return Array.from(
-    { length: n },
-    () => `
-      <article class="card sk">
-        <div class="thumb shimmer"></div>
-        <div class="card-body">
-          <div class="avatar shimmer"></div>
-          <div class="card-info">
-            <div class="shimmer line w80"></div>
-            <div class="shimmer line w60"></div>
-            <div class="shimmer line w40"></div>
-          </div>
-        </div>
-      </article>`
-  ).join('');
-}
+// ---------- Home page ----------
 
-function emptyState(title, sub) {
-  return `
-    <div class="empty">
-      ${icons.search}
-      <h2>${escapeHtml(title)}</h2>
-      <p>${escapeHtml(sub)}</p>
-    </div>`;
-}
-
+// Renders the category chips + an empty grid, then fills the grid.
 function renderHome(page) {
   currentCategory = 'All';
   const chips = ['All', ...new Set(videos.map((v) => v.category))];
@@ -199,6 +234,7 @@ function renderHome(page) {
     </div>
     <div class="grid" id="grid"></div>`;
 
+  // Clicking a chip filters the current page's videos by category.
   $('#chips').addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if (!chip) return;
@@ -210,6 +246,8 @@ function renderHome(page) {
   renderGrid(page);
 }
 
+// Fills the grid with skeleton cards first for a smooth feel, then swaps
+// in the real video cards (or an empty state) after a tiny delay.
 function renderGrid(page) {
   const grid = $('#grid');
   if (!grid) return;
@@ -229,10 +267,12 @@ function renderGrid(page) {
   }, 300);
 }
 
+// Checks if the user is subscribed to this video's channel.
 function isSubscribed(v) {
   return store.has('subscriptions', v.channelId);
 }
 
+// Builds the HTML for one video card in the grid.
 function videoCard(v) {
   return `
     <article class="card" data-id="${v.id}" tabindex="0" aria-label="Watch ${escapeHtml(v.title)}">
@@ -251,6 +291,7 @@ function videoCard(v) {
     </article>`;
 }
 
+// Renders the search results page with a header showing how many matched.
 function renderSearch(query) {
   const results = videos.filter((v) =>
     `${v.title} ${v.channel} ${v.category}`.toLowerCase().includes(query.toLowerCase())
@@ -273,6 +314,38 @@ function renderSearch(query) {
   }, 300);
 }
 
+// Returns a string of skeleton placeholder cards for the loading state.
+function skeletonCards(n = 8) {
+  return Array.from(
+    { length: n },
+    () => `
+      <article class="card sk">
+        <div class="thumb shimmer"></div>
+        <div class="card-body">
+          <div class="avatar shimmer"></div>
+          <div class="card-info">
+            <div class="shimmer line w80"></div>
+            <div class="shimmer line w60"></div>
+            <div class="shimmer line w40"></div>
+          </div>
+        </div>
+      </article>`
+  ).join('');
+}
+
+// Builds the centered "nothing here" message used on empty pages.
+function emptyState(title, sub) {
+  return `
+    <div class="empty">
+      ${icons.search}
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(sub)}</p>
+    </div>`;
+}
+
+// ---------- Watch page ----------
+
+// Renders the full video player page for the given video id.
 function renderWatch(id) {
   const video = videos.find((v) => v.id === +id);
   const app = $('#app');
@@ -361,6 +434,7 @@ function renderWatch(id) {
   bindWatchActions(video, seedComments.length);
 }
 
+// Builds one item in the "Related videos" sidebar.
 function relatedItem(v) {
   return `
     <div class="related" data-id="${v.id}" tabindex="0" role="button" aria-label="Watch ${escapeHtml(v.title)}">
@@ -376,6 +450,7 @@ function relatedItem(v) {
     </div>`;
 }
 
+// Turns an array of comment objects into the comment list markup.
 function commentHtml(list) {
   return list
     .map(
@@ -392,6 +467,7 @@ function commentHtml(list) {
     .join('');
 }
 
+// Wires up all the click handlers on the watch page (like, save, etc.).
 function bindWatchActions(video, seedCount) {
   const likeBtn = $('#likeBtn');
   const dislikeBtn = $('#dislikeBtn');
@@ -400,6 +476,7 @@ function bindWatchActions(video, seedCount) {
   const subscribeBtn = $('#subscribeBtn');
   const commentInput = $('#commentInput');
 
+  // Like/Unlike toggle, stored so the Liked page stays in sync.
   likeBtn.addEventListener('click', () => {
     const liked = store.toggle('liked', video.id);
     likeBtn.classList.toggle('active', liked);
@@ -408,6 +485,7 @@ function bindWatchActions(video, seedCount) {
     toast(liked ? 'Added to Liked videos' : 'Removed from Liked videos');
   });
 
+  // Dislike is just a visual toggle for now.
   dislikeBtn.addEventListener('click', () => {
     const disliked = dislikeBtn.classList.toggle('active');
     if (disliked && likeBtn.classList.contains('active')) {
@@ -416,6 +494,7 @@ function bindWatchActions(video, seedCount) {
     }
   });
 
+  // Copies the current page url to the clipboard.
   shareBtn.addEventListener('click', () => {
     navigator.clipboard
       .writeText(location.href)
@@ -423,6 +502,7 @@ function bindWatchActions(video, seedCount) {
       .catch(() => toast('Could not copy link'));
   });
 
+  // Save/un-save to the Library (watch later).
   saveBtn.addEventListener('click', () => {
     const saved = store.toggle('watchLater', video.id);
     saveBtn.classList.toggle('active', saved);
@@ -430,6 +510,7 @@ function bindWatchActions(video, seedCount) {
     toast(saved ? 'Saved to Library' : 'Removed from Library');
   });
 
+  // Subscribe/unsubscribe, stored by channel so the Subscriptions page works.
   subscribeBtn.addEventListener('click', () => {
     const subscribed = store.toggle('subscriptions', video.channelId);
     subscribeBtn.classList.toggle('subscribed', subscribed);
@@ -437,6 +518,7 @@ function bindWatchActions(video, seedCount) {
     toast(subscribed ? `Subscribed to ${video.channel}` : 'Unsubscribed');
   });
 
+  // Pressing Enter in the comment box posts the comment to the top of the list.
   commentInput.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
@@ -455,6 +537,10 @@ function bindWatchActions(video, seedCount) {
   });
 }
 
+// ---------- Search ----------
+
+// Sets up the whole search experience: live filtering, the suggestion
+// dropdown, keyboard navigation and the mobile search button.
 function initSearch() {
   const input = $('#searchInput');
   const form = $('#searchForm');
@@ -462,11 +548,13 @@ function initSearch() {
   const mobileBtn = $('#searchMobileBtn');
   let selected = -1;
 
+  // Hides the suggestion dropdown and resets keyboard selection.
   const close = () => {
     box.hidden = true;
     selected = -1;
   };
 
+  // Draws the suggestion buttons inside the dropdown.
   const renderItems = (items, q) => {
     if (!items.length) return close();
     box.innerHTML = items
@@ -482,6 +570,7 @@ function initSearch() {
     box.hidden = false;
   };
 
+  // Collects the suggestions (recent searches + matching titles).
   const update = (q) => {
     const history = store.get('searchHistory');
     const items = [];
@@ -503,6 +592,7 @@ function initSearch() {
     renderItems(items.slice(0, 8), q);
   };
 
+  // Actually runs the search: saves it to history and renders results.
   const submit = (q) => {
     q = q.trim();
     close();
@@ -516,9 +606,11 @@ function initSearch() {
     renderSearch(q);
   };
 
+  // Live filter as you type + show suggestions when focusing.
   input.addEventListener('input', debounce(() => update(input.value.trim()), 200));
   input.addEventListener('focus', () => update(input.value.trim()));
 
+  // Arrow keys move through suggestions, Enter submits, Escape closes.
   input.addEventListener('keydown', (e) => {
     const items = $$('.sugg', box);
 
@@ -543,6 +635,7 @@ function initSearch() {
     }
   });
 
+  // Clicking a suggestion runs it; clicking the × removes it from history.
   box.addEventListener('click', (e) => {
     const remove = e.target.closest('.sugg-x');
     if (remove) {
@@ -561,21 +654,25 @@ function initSearch() {
     }
   });
 
+  // Form submit (Enter or the search button) runs the search.
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     submit(input.value);
   });
 
+  // On mobile the search bar is hidden; this toggles it open.
   mobileBtn.addEventListener('click', () => {
     document.body.classList.toggle('search-open');
     if (document.body.classList.contains('search-open')) input.focus();
   });
 
+  // Clicking anywhere outside the search box closes the suggestions.
   document.addEventListener('click', (e) => {
     if (!$('#search').contains(e.target)) close();
   });
 }
 
+// Wraps the matching part of a suggestion in a <mark> tag.
 function highlight(text, q) {
   const safe = escapeHtml(text);
   if (!q) return safe;
@@ -590,6 +687,9 @@ function highlight(text, q) {
   );
 }
 
+// ---------- Theme + sidebar ----------
+
+// Reads the saved theme (dark/light), applies it, and handles the toggle.
 function initTheme() {
   const btn = $('#themeBtn');
   const apply = (theme) => {
@@ -605,11 +705,13 @@ function initTheme() {
   });
 }
 
+// Handles the sidebar: mini mode on desktop, slide-in drawer on mobile.
 function initSidebar() {
   const menuBtn = $('#menuBtn');
   const overlay = $('#overlay');
   const isMobile = () => window.innerWidth <= 768;
 
+  // Applies (or removes) the mini sidebar class based on saved state.
   const applyMini = () => {
     document.body.classList.toggle('sidebar-mini', store.get('sidebarMini', false) && !isMobile());
   };
@@ -626,14 +728,20 @@ function initSidebar() {
     }
   });
 
+  // Tapping the dark overlay closes the mobile drawer.
   overlay.addEventListener('click', () => {
     document.body.classList.remove('sidebar-open');
     overlay.classList.remove('active');
   });
 
+  // Re-evaluate on resize so the sidebar behaves when crossing breakpoints.
   window.addEventListener('resize', debounce(applyMini, 150));
 }
 
+// ---------- Global click handling ----------
+
+// Event delegation for opening videos. The grid, related list and keyboard
+// support all funnel through here, so we don't attach per-card listeners.
 function initDelegation() {
   const openFrom = (el) => {
     const id = +el.dataset.id;
@@ -648,6 +756,7 @@ function initDelegation() {
     if (related) openFrom(related);
   });
 
+  // Enter/Space on a focused card also opens the video.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     const el = e.target.closest('.card[data-id], .related[data-id]');
@@ -658,6 +767,7 @@ function initDelegation() {
   });
 }
 
+// Shows a small toast message at the bottom of the screen.
 function toast(message) {
   const el = $('#toast');
   el.textContent = message;
@@ -666,6 +776,9 @@ function toast(message) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
 }
 
+// ---------- Startup ----------
+
+// Boots everything once the DOM is ready, then renders the current route.
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initSidebar();

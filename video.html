@@ -17,6 +17,8 @@
     a { color: #3ea6ff; }
   </style>
   <script>
+    // Legacy redirect: old links like video.html?id=5 now jump to the
+    // single-page app's watch route so they keep working.
     var id = new URLSearchParams(window.location.search).get('id');
     var hash = id ? '#/watch/' + id : '#/';
     window.location.replace('./index.html' + hash);
