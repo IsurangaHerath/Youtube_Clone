@@ -1,755 +1,676 @@
-// YouTube Clone - JavaScript
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// Get URL parameter for video ID
-function getUrlParameter(name) {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(name);
+function debounce(fn, ms = 250) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
 }
 
-// Get the video grid element
-const videoGrid = document.getElementById('videoGrid');
-
-// Create HTML for a video card (modern approach with data attributes)
-function createVideoCard(video) {
-    return `
-        <article class="video-card" data-video-id="${video.id}" tabindex="0" role="button" aria-label="Watch ${video.title}">
-            <div class="thumbnail-container">
-                <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail" loading="lazy" onerror="this.src='https://picsum.photos/320/180?random=${video.id}'">
-                <span class="duration">${video.duration}</span>
-            </div>
-            <div class="video-info">
-                <img src="${video.thumbnail}" alt="" class="channel-avatar-small" loading="lazy" onerror="this.src='https://picsum.photos/36/36?random=${video.id}'">
-                <div class="video-details">
-                    <h3 class="video-card-title">${video.title}</h3>
-                    <p class="channel-name">${video.channel}</p>
-                    <p class="video-meta">${video.views} • ${video.uploaded}</p>
-                </div>
-            </div>
-        </article>
-    `;
+function formatCount(n) {
+  if (n >= 1e9) return +(n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return +(n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return +(n / 1e3).toFixed(1) + 'K';
+  return String(n);
 }
 
-// Event delegation for video cards (more efficient than inline handlers)
-function setupVideoCardListeners() {
-    const grid = document.getElementById('videoGrid');
-    if (!grid) return;
-    
-    grid.addEventListener('click', (e) => {
-        const card = e.target.closest('.video-card');
-        if (card) {
-            const videoId = card.dataset.videoId;
-            navigateToVideo(videoId);
-        }
-    });
-    
-    // Add keyboard support (Enter/Space to open video)
-    grid.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            const card = e.target.closest('.video-card');
-            if (card) {
-                e.preventDefault();
-                const videoId = card.dataset.videoId;
-                navigateToVideo(videoId);
-            }
-        }
-    });
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
 }
 
-// Modern hash-based routing for navigation
-function navigateToVideo(videoId) {
-    window.location.hash = `video/${videoId}`;
+function hue(str) {
+  let h = 0;
+  for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
 }
 
-// Parse hash route (modern routing)
+function initial(str) {
+  return (String(str).trim()[0] || 'Y').toUpperCase();
+}
+
+function hsl(h, s, l) {
+  return `hsl(${h},${Math.round(s * 100)}%,${Math.round(l * 100)}%)`;
+}
+
+function fallbackThumb(id) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><defs><linearGradient id='g${id}' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${hsl(hue('a' + id), 0.35, 0.24)}'/><stop offset='1' stop-color='${hsl(hue('b' + id), 0.5, 0.14)}'/></linearGradient></defs><rect width='640' height='360' fill='url(#g${id})'/><text x='320' y='196' font-size='42' fill='#ffffffcc' text-anchor='middle' font-family='Arial, sans-serif'>Video ${id}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+const icons = {
+  like: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h3z"/><path d="M7 10l5-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-1 7a2 2 0 0 1-2 2H7"/></svg>',
+  dislike: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3z"/><path d="M17 14l-5 7a2 2 0 0 1-2-2v-4H5a2 2 0 0 1-2-2l1-7a2 2 0 0 1 2-2h11"/></svg>',
+  share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>',
+  save: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>',
+  verified: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1l2.6 2.1 3.3-.4 1.1 3.2 3 1.6-.9 3.2 2.1 2.6-2.3 2.4.6 3.3-3.2 1.1-1.3 3-3.2-1.4L12 23l-2.9-1.6-3.2 1.3-1.2-3.2-3.2-.9L2.5 15 1.6 12 3.4 9.8 2.4 6.6l3.3-.9L7 2.5l3.2.8z"/><path d="M10.5 15.2 7.8 12.5l1.4-1.4 1.3 1.3 4.2-4.2 1.4 1.4z" fill="#fff"/></svg>',
+  likeSm: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h3z"/><path d="M7 10l5-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-1 7a2 2 0 0 1-2 2H7"/></svg>',
+  dislikeSm: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3z"/><path d="M17 14l-5 7a2 2 0 0 1-2-2v-4H5a2 2 0 0 1-2-2l1-7a2 2 0 0 1 2-2h11"/></svg>',
+  search: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  clock: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  sun: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>',
+  moon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>'
+};
+
+const store = {
+  get(ns, fallback = []) {
+    try {
+      const v = JSON.parse(localStorage.getItem('ytc.' + ns));
+      return v == null ? fallback : v;
+    } catch {
+      return fallback;
+    }
+  },
+  set(ns, value) {
+    localStorage.setItem('ytc.' + ns, JSON.stringify(value));
+  },
+  has(ns, id) {
+    return this.get(ns).includes(id);
+  },
+  toggle(ns, id) {
+    const arr = this.get(ns);
+    const i = arr.indexOf(id);
+    if (i > -1) arr.splice(i, 1);
+    else arr.unshift(id);
+    this.set(ns, arr);
+    return i === -1;
+  },
+  push(ns, id) {
+    const arr = this.get(ns);
+    if (!arr.includes(id)) {
+      arr.unshift(id);
+      this.set(ns, arr);
+    }
+  }
+};
+
+const PAGES = ['home', 'trending', 'subscriptions', 'library', 'history', 'liked'];
+const PAGE_TITLES = {
+  home: 'Home',
+  trending: 'Trending',
+  subscriptions: 'Subscriptions',
+  library: 'Library',
+  history: 'History',
+  liked: 'Liked videos'
+};
+
+let currentCategory = 'All';
+let toastTimer;
+
+function navigate(page, id) {
+  location.hash = id != null ? `#/${page}/${id}` : `#/${page}`;
+}
+
 function parseRoute() {
-    const hash = window.location.hash.slice(1); // Remove leading '#'
-    if (hash.startsWith('video/')) {
-        const videoId = hash.split('/')[1];
-        return { page: 'video', id: videoId };
-    }
-    return { page: 'home', id: null };
+  const raw = location.hash.replace(/^#\/?/, '');
+  const [name = 'home', id] = raw.split('/');
+  return { name: name || 'home', id };
 }
 
-// Legacy openVideo for backwards compatibility
-function openVideo(videoId) {
-    window.location.href = `video.html?id=${videoId}`;
+function setActiveSidebar(page) {
+  $$('.side-link').forEach((link) => link.classList.toggle('active', link.dataset.route === page));
 }
 
-// Create skeleton loading card
-function createSkeletonCard() {
-    return `
-        <div class="video-card skeleton">
-            <div class="thumbnail-container">
-                <div class="skeleton-thumbnail"></div>
-                <span class="duration skeleton-duration"></span>
-            </div>
-            <div class="video-info">
-                <div class="skeleton-avatar"></div>
-                <div class="video-details">
-                    <div class="skeleton-title"></div>
-                    <div class="skeleton-channel"></div>
-                    <div class="skeleton-meta"></div>
-                </div>
-            </div>
+function resolveRoute() {
+  const { name, id } = parseRoute();
+  document.body.classList.remove('sidebar-open', 'search-open');
+
+  if (name === 'watch') {
+    setActiveSidebar(null);
+    document.title = 'Watch - YouTube Clone';
+    renderWatch(id);
+    return;
+  }
+
+  const page = PAGES.includes(name) ? name : 'home';
+  setActiveSidebar(page);
+  document.title = `${PAGE_TITLES[page]} - YouTube Clone`;
+  renderHome(page);
+}
+
+function getBaseVideos(page) {
+  switch (page) {
+    case 'trending':
+      return [...videos].sort((a, b) => b.views - a.views).slice(0, 8);
+    case 'subscriptions':
+      return videos.filter((v) => store.has('subscriptions', v.channelId));
+    case 'library':
+      return store.get('watchLater').map((id) => videos.find((v) => v.id === id)).filter(Boolean);
+    case 'history':
+      return store.get('history').map((id) => videos.find((v) => v.id === id)).filter(Boolean);
+    case 'liked':
+      return store.get('liked').map((id) => videos.find((v) => v.id === id)).filter(Boolean);
+    default:
+      return [...videos];
+  }
+}
+
+function pageEmpty(page) {
+  const list = getBaseVideos(page);
+  if (page === 'subscriptions')
+    return ['No subscriptions yet', 'Hit Subscribe on any channel and its videos will show up here.'];
+  if (page === 'history') return ['No watch history', 'Videos you watch will appear here.'];
+  if (page === 'liked') return ['No liked videos', 'Tap the like button on a video to save it here.'];
+  if (page === 'library') return ['Your library is empty', 'Use Save on a video to add it to your library.'];
+  return list.length ? null : ['No videos found', 'Try a different category.'];
+}
+
+function skeletonCards(n = 8) {
+  return Array.from(
+    { length: n },
+    () => `
+      <article class="card sk">
+        <div class="thumb shimmer"></div>
+        <div class="card-body">
+          <div class="avatar shimmer"></div>
+          <div class="card-info">
+            <div class="shimmer line w80"></div>
+            <div class="shimmer line w60"></div>
+            <div class="shimmer line w40"></div>
+          </div>
         </div>
-    `;
+      </article>`
+  ).join('');
 }
 
-// Show skeleton loading cards
-function showSkeletonLoading(count = 8) {
-    if (!videoGrid) return;
-    videoGrid.innerHTML = Array(count).fill(null).map(() => createSkeletonCard()).join('');
+function emptyState(title, sub) {
+  return `
+    <div class="empty">
+      ${icons.search}
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(sub)}</p>
+    </div>`;
 }
 
-// Filter videos by category
-function filterByCategory(category) {
-    if (category === 'all') {
-        renderVideos(videos);
-        return;
+function renderHome(page) {
+  currentCategory = 'All';
+  const chips = ['All', ...new Set(videos.map((v) => v.category))];
+
+  $('#app').innerHTML = `
+    <div class="chips" id="chips">
+      ${chips.map((c) => `<button class="chip${c === 'All' ? ' active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}
+    </div>
+    <div class="grid" id="grid"></div>`;
+
+  $('#chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    currentCategory = chip.dataset.cat;
+    $$('.chip').forEach((c) => c.classList.toggle('active', c === chip));
+    renderGrid(page);
+  });
+
+  renderGrid(page);
+}
+
+function renderGrid(page) {
+  const grid = $('#grid');
+  if (!grid) return;
+
+  grid.innerHTML = skeletonCards(8);
+  clearTimeout(grid._t);
+  grid._t = setTimeout(() => {
+    let list = getBaseVideos(page);
+    if (currentCategory !== 'All') list = list.filter((v) => v.category === currentCategory);
+
+    if (!list.length) {
+      const [title, sub] = pageEmpty(page);
+      grid.innerHTML = emptyState(title, sub);
+      return;
     }
-    const filtered = videos.filter(video => video.category === category);
-    renderVideos(filtered);
+    grid.innerHTML = list.map((v) => videoCard(v)).join('');
+  }, 300);
 }
 
-// Sort videos by criteria
-function sortVideos(sortBy) {
-    let sortedVideos = [...videos];
-    
-    switch(sortBy) {
-        case 'date':
-            sortedVideos.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
-            break;
-        case 'views':
-            sortedVideos.sort((a, b) => parseInt(b.views.replace(/[^0-9]/g, '')) - parseInt(a.views.replace(/[^0-9]/g, '')));
-            break;
-        case 'alphabetical':
-            sortedVideos.sort((a, b) => a.title.localeCompare(b.title));
-            break;
-    }
-    
-    renderVideos(sortedVideos);
+function isSubscribed(v) {
+  return store.has('subscriptions', v.channelId);
 }
 
-// Lazy load images with Intersection Observer
-function setupLazyLoading() {
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                }
-                observer.unobserve(img);
-            }
-        });
-    }, { rootMargin: '50px' });
-
-    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
-        imageObserver.observe(img);
-    });
-}
-
-// Render videos to the page
-function renderVideos(videoList = videos) {
-    if (!videoGrid) return;
-    videoGrid.innerHTML = videoList.map(createVideoCard).join('');
-}
-
-// Debounce function to limit rapid API calls
-function debounce(func, delay = 300) {
-    let timeoutId;
-    return function(...args) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func.apply(this, args), delay);
-    };
-}
-
-// Search history management with localStorage
-const SearchHistory = {
-    STORAGE_KEY: 'youtube_clone_search_history',
-    MAX_ITEMS: 10,
-    
-    getHistory() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
-        } catch {
-            return [];
-        }
-    },
-    
-    addToHistory(query) {
-        if (!query.trim()) return;
-        let history = this.getHistory();
-        history = history.filter(item => item.toLowerCase() !== query.toLowerCase());
-        history.unshift(query);
-        history = history.slice(0, this.MAX_ITEMS);
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
-    },
-    
-    clearHistory() {
-        localStorage.removeItem(this.STORAGE_KEY);
-    },
-    
-    getMatchingHistory(searchTerm) {
-        if (!searchTerm) return this.getHistory();
-        return this.getHistory().filter(item => 
-            item.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }
-};
-
-// Highlight matching text in results
-function highlightText(text, searchTerm) {
-    if (!searchTerm) return text;
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(regex, '<mark class="search-highlight">$1</mark>');
-}
-
-// Get search suggestions (history + video titles)
-function getSearchSuggestions(searchTerm) {
-    const suggestions = [];
-    const historyMatches = SearchHistory.getMatchingHistory(searchTerm);
-    suggestions.push(...historyMatches.map(text => ({ type: 'history', text })));
-    
-    if (searchTerm) {
-        const titleMatches = videos
-            .filter(v => v.title.toLowerCase().includes(searchTerm.toLowerCase()))
-            .slice(0, 5)
-            .map(v => ({ type: 'video', text: v.title }));
-        suggestions.push(...titleMatches);
-    }
-    
-    return suggestions.slice(0, 8);
-}
-
-// Render search suggestions dropdown
-function renderSuggestions(suggestions, searchTerm) {
-    const container = document.getElementById('searchSuggestions');
-    if (!container) return;
-    
-    if (suggestions.length === 0) {
-        container.classList.remove('active');
-        container.innerHTML = '';
-        return;
-    }
-    
-    container.innerHTML = suggestions.map((item, index) => {
-        const icon = item.type === 'history' ? '🕐' : '🔍';
-        const highlightedText = highlightText(item.text, searchTerm);
-        return `
-            <div class="suggestion-item ${item.type}" data-index="${index}" data-text="${item.text}">
-                <span class="suggestion-icon">${icon}</span>
-                <span class="suggestion-text">${highlightedText}</span>
-                ${item.type === 'history' ? '<button class="suggestion-remove" data-text="' + item.text + '" title="Remove">×</button>' : ''}
-            </div>
-        `;
-    }).join('');
-    
-    container.classList.add('active');
-}
-
-// Handle search functionality (modern with debounce, suggestions, history)
-function handleSearch() {
-    const searchInput = document.getElementById('searchInput');
-    const suggestionsContainer = document.getElementById('searchSuggestions');
-    if (!searchInput) return;
-    
-    let selectedIndex = -1;
-    let currentSuggestions = [];
-    
-    const performSearch = debounce((searchTerm) => {
-        const filteredVideos = videos.filter(video => 
-            video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            video.channel.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        
-        renderVideos(filteredVideos);
-        
-        if (searchTerm) {
-            currentSuggestions = getSearchSuggestions(searchTerm);
-            renderSuggestions(currentSuggestions, searchTerm);
-        } else {
-            currentSuggestions = SearchHistory.getHistory().map(text => ({ type: 'history', text }));
-            renderSuggestions(currentSuggestions, '');
-        }
-        selectedIndex = -1;
-    }, 250);
-    
-    searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.trim();
-        performSearch(searchTerm);
-    });
-    
-    searchInput.addEventListener('focus', () => {
-        const searchTerm = searchInput.value.trim();
-        if (searchTerm) {
-            currentSuggestions = getSearchSuggestions(searchTerm);
-            renderSuggestions(currentSuggestions, searchTerm);
-        } else {
-            currentSuggestions = SearchHistory.getHistory().map(text => ({ type: 'history', text }));
-            renderSuggestions(currentSuggestions, '');
-        }
-    });
-    
-    searchInput.addEventListener('keydown', (e) => {
-        if (!suggestionsContainer.classList.contains('active')) return;
-        
-        const items = suggestionsContainer.querySelectorAll('.suggestion-item');
-        
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-            updateSelectedSuggestion(items, selectedIndex);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, -1);
-            updateSelectedSuggestion(items, selectedIndex);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            const selectedItem = currentSuggestions[selectedIndex];
-            if (selectedItem) {
-                searchInput.value = selectedItem.text;
-                SearchHistory.addToHistory(selectedItem.text);
-                suggestionsContainer.classList.remove('active');
-                renderVideos(videos.filter(v => 
-                    v.title.toLowerCase().includes(selectedItem.text.toLowerCase()) ||
-                    v.channel.toLowerCase().includes(selectedItem.text.toLowerCase())
-                ));
-            }
-        } else if (e.key === 'Escape') {
-            suggestionsContainer.classList.remove('active');
-            searchInput.blur();
-        }
-    });
-    
-    function updateSelectedSuggestion(items, index) {
-        items.forEach((item, i) => {
-            item.classList.toggle('selected', i === index);
-        });
-    }
-    
-    suggestionsContainer.addEventListener('click', (e) => {
-        const removeBtn = e.target.closest('.suggestion-remove');
-        if (removeBtn) {
-            e.stopPropagation();
-            const text = removeBtn.dataset.text;
-            let history = SearchHistory.getHistory();
-            history = history.filter(item => item !== text);
-            localStorage.setItem(SearchHistory.STORAGE_KEY, JSON.stringify(history));
-            const searchTerm = searchInput.value.trim();
-            currentSuggestions = getSearchSuggestions(searchTerm);
-            renderSuggestions(currentSuggestions, searchTerm);
-            return;
-        }
-        
-        const item = e.target.closest('.suggestion-item');
-        if (item) {
-            const text = item.dataset.text;
-            searchInput.value = text;
-            SearchHistory.addToHistory(text);
-            suggestionsContainer.classList.remove('active');
-            renderVideos(videos.filter(v => 
-                v.title.toLowerCase().includes(text.toLowerCase()) ||
-                v.channel.toLowerCase().includes(text.toLowerCase())
-            ));
-        }
-    });
-    
-    document.addEventListener('click', (e) => {
-        const container = document.getElementById('searchContainer');
-        if (container && !container.contains(e.target)) {
-            suggestionsContainer.classList.remove('active');
-        }
-    });
-}
-
-// Navigate to video page
-function openVideo(videoId) {
-    window.location.href = `video.html?id=${videoId}`;
-}
-
-// Load video details on video page (modern hash routing support)
-function loadVideoDetails() {
-    // Support both hash-based routing (#/video/1) and query params (?id=1)
-    const route = parseRoute();
-    let videoId = route.id || getUrlParameter('id');
-    
-    if (!videoId) {
-        document.getElementById('videoTitle').textContent = 'Video not found';
-        return;
-    }
-    
-    videoId = parseInt(videoId);
-    const video = videos.find(v => v.id === videoId);
-    
-    if (!video) {
-        document.getElementById('videoTitle').textContent = 'Video not found';
-        return;
-    }
-    
-    const videoFrame = document.getElementById('videoFrame');
-    if (videoFrame) {
-        videoFrame.src = video.videoUrl;
-    }
-    
-    document.getElementById('videoTitle').textContent = video.title;
-    document.getElementById('videoViews').textContent = video.views;
-    document.getElementById('videoDate').textContent = '• Uploaded ' + video.uploaded;
-    document.getElementById('channelName').textContent = video.channel;
-    document.getElementById('channelAvatar').textContent = video.channel.charAt(0);
-    
-    document.title = video.title + ' - YouTube Clone';
-    
-    loadRelatedVideos(videoId);
-    renderComments();
-}
-
-// Load related videos in sidebar (modern event handling)
-function loadRelatedVideos(currentVideoId) {
-    const relatedContainer = document.getElementById('relatedVideos');
-    if (!relatedContainer) return;
-    
-    const related = videos.filter(v => v.id !== currentVideoId).slice(0, 10);
-    
-    relatedContainer.innerHTML = related.map(video => `
-        <article class="related-video-item" data-video-id="${video.id}" tabindex="0" role="button" aria-label="Watch ${video.title}">
-            <img src="${video.thumbnail}" alt="" class="related-thumbnail" loading="lazy">
-            <div class="related-info">
-                <h4 class="related-video-title">${video.title}</h4>
-                <p class="related-channel-name">${video.channel}</p>
-                <p class="related-meta">${video.views} • ${video.uploaded}</p>
-            </div>
-        </article>
-    `).join('');
-}
-
-// Setup related videos click handling
-function setupRelatedVideosListener() {
-    const container = document.getElementById('relatedVideos');
-    if (!container) return;
-    
-    container.addEventListener('click', (e) => {
-        const item = e.target.closest('.related-video-item');
-        if (item) {
-            const videoId = item.dataset.videoId;
-            navigateToVideo(videoId);
-        }
-    });
-    
-    container.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            const item = e.target.closest('.related-video-item');
-            if (item) {
-                e.preventDefault();
-                const videoId = item.dataset.videoId;
-                navigateToVideo(videoId);
-            }
-        }
-    });
-}
-
-// Listen for hash changes (modern SPA routing)
-function setupHashRouting() {
-    window.addEventListener('hashchange', () => {
-        const route = parseRoute();
-        if (route.page === 'video' && document.getElementById('videoFrame')) {
-            loadVideoDetails();
-        }
-    });
-}
-
-// Render comments
-function renderComments() {
-    const commentsList = document.getElementById('commentsList');
-    if (!commentsList) return;
-    
-    commentsList.innerHTML = comments.map(comment => `
-        <div class="comment">
-            <img src="${comment.avatar}" alt="" class="user-avatar comment-avatar">
-            <div class="comment-body">
-                <div class="comment-header">
-                    <span class="comment-user">${comment.user}</span>
-                    <span class="comment-time">${comment.time}</span>
-                </div>
-                <p class="comment-text">${comment.text}</p>
-                <div class="comment-actions">
-                    <span class="comment-action">👍 ${comment.likes}</span>
-                    <span class="comment-action">👎</span>
-                    <span class="comment-action">Reply</span>
-                </div>
-            </div>
+function videoCard(v) {
+  return `
+    <article class="card" data-id="${v.id}" tabindex="0" aria-label="Watch ${escapeHtml(v.title)}">
+      <div class="thumb">
+        <img src="${v.thumbnail}" alt="${escapeHtml(v.title)}" loading="lazy" onerror="this.onerror=null;this.src=fallbackThumb(${v.id})" />
+        <span class="duration-badge">${v.duration}</span>
+      </div>
+      <div class="card-body">
+        <div class="avatar avatar-sm" style="--hue:${hue(v.channel)}">${initial(v.channel)}</div>
+        <div class="card-info">
+          <h3 class="card-title">${escapeHtml(v.title)}</h3>
+          <p class="card-channel">${escapeHtml(v.channel)}${isSubscribed(v) ? icons.verified : ''}</p>
+          <p class="card-meta">${formatCount(v.views)} views · ${v.uploaded}</p>
         </div>
-    `).join('');
+      </div>
+    </article>`;
 }
 
-// Like button functionality
-function setupLikeButton() {
-    const likeBtn = document.getElementById('likeBtn');
-    if (!likeBtn) return;
-    
-    let liked = false;
-    let likeCount = 1250;
-    
-    likeBtn.addEventListener('click', () => {
-        liked = !liked;
-        
-        if (liked) {
-            likeCount++;
-            likeBtn.classList.add('liked');
-            document.getElementById('likeCount').textContent = formatNumber(likeCount);
-        } else {
-            likeCount--;
-            likeBtn.classList.remove('liked');
-            document.getElementById('likeCount').textContent = formatNumber(likeCount);
-        }
-    });
+function renderSearch(query) {
+  const results = videos.filter((v) =>
+    `${v.title} ${v.channel} ${v.category}`.toLowerCase().includes(query.toLowerCase())
+  );
+
+  $('#app').innerHTML = `
+    <div class="results-header">
+      <h1>Search results for &quot;${escapeHtml(query)}&quot;</h1>
+      <p>${results.length} video${results.length === 1 ? '' : 's'} found</p>
+    </div>
+    <div class="grid" id="grid"></div>`;
+
+  const grid = $('#grid');
+  grid.innerHTML = skeletonCards(6);
+  clearTimeout(grid._t);
+  grid._t = setTimeout(() => {
+    grid.innerHTML = results.length
+      ? results.map((v) => videoCard(v)).join('')
+      : emptyState('No results found', `Nothing matches "${escapeHtml(query)}". Try a different search.`);
+  }, 300);
 }
 
-// Subscribe button functionality
-function setupSubscribeButton() {
-    const subscribeBtn = document.getElementById('subscribeBtn');
-    if (!subscribeBtn) return;
-    
-    let subscribed = false;
-    
-    subscribeBtn.addEventListener('click', () => {
-        subscribed = !subscribed;
-        
-        if (subscribed) {
-            subscribeBtn.textContent = 'Subscribed ✓';
-            subscribeBtn.classList.add('subscribed');
-        } else {
-            subscribeBtn.textContent = 'Subscribe';
-            subscribeBtn.classList.remove('subscribed');
-        }
-    });
+function renderWatch(id) {
+  const video = videos.find((v) => v.id === +id);
+  const app = $('#app');
+
+  if (!video) {
+    document.title = 'Video not found - YouTube Clone';
+    app.innerHTML = emptyState('Video not found', 'This video may have been removed or the link is invalid.');
+    return;
+  }
+
+  document.title = `${video.title} - YouTube Clone`;
+  store.push('history', video.id);
+
+  const liked = store.has('liked', video.id);
+  const saved = store.has('watchLater', video.id);
+  const subscribed = store.has('subscriptions', video.channelId);
+  const related = videos.filter((v) => v.id !== video.id).slice(0, 10);
+  const seedComments = getCommentsForVideo(video.id);
+  const myComments = store.get('comments.' + video.id);
+  const commentTotal = seedComments.length + myComments.length;
+
+  app.innerHTML = `
+    <div class="watch">
+      <div class="watch-main">
+        <div class="player">
+          <iframe src="${video.videoUrl}?rel=0" title="YouTube video player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen></iframe>
+        </div>
+
+        <h1 class="watch-title">${escapeHtml(video.title)}</h1>
+        <div class="watch-meta">
+          <span>${formatCount(video.views)} views</span>
+          <span>·</span>
+          <span>${video.uploaded}</span>
+          <span>·</span>
+          <span>${formatCount(video.likes + (liked ? 1 : 0))} likes</span>
+        </div>
+
+        <div class="watch-actions">
+          <div class="actions-group">
+            <button class="action-btn ${liked ? 'active' : ''}" id="likeBtn" type="button">
+              ${icons.like}<span class="like-count">${formatCount(video.likes + (liked ? 1 : 0))}</span>
+            </button>
+            <span class="divider"></span>
+            <button class="action-btn" id="dislikeBtn" type="button">${icons.dislike}</button>
+          </div>
+          <button class="action-btn" id="shareBtn" type="button">${icons.share}<span>Share</span></button>
+          <button class="action-btn ${saved ? 'active' : ''}" id="saveBtn" type="button">
+            ${icons.save}<span class="save-label">${saved ? 'Saved' : 'Save'}</span>
+          </button>
+        </div>
+
+        <div class="channel-row">
+          <div class="avatar" style="--hue:${hue(video.channel)}">${initial(video.channel)}</div>
+          <div class="channel-meta">
+            <strong>${escapeHtml(video.channel)}${isSubscribed(video) ? ' ' + icons.verified : ''}</strong>
+            <span>${formatCount(video.subscribers)} subscribers</span>
+          </div>
+          <button class="subscribe-btn ${subscribed ? 'subscribed' : ''}" id="subscribeBtn" type="button">
+            ${subscribed ? 'Subscribed' : 'Subscribe'}
+          </button>
+        </div>
+
+        <div class="description">
+          <p><strong>${formatCount(video.views)} views · ${video.uploaded}</strong></p>
+          <p style="margin-top:8px">${escapeHtml(video.description).replace(/\n/g, '<br>')}</p>
+        </div>
+
+        <section class="comments">
+          <h2><span id="commentCount">${formatCount(commentTotal)}</span> Comments</h2>
+          <div class="add-comment">
+            <div class="avatar avatar-sm" style="--hue:200">Y</div>
+            <input class="comment-input" id="commentInput" type="text" placeholder="Add a comment..." autocomplete="off" />
+          </div>
+          <div class="comment-list" id="commentList">${commentHtml([...myComments, ...seedComments])}</div>
+        </section>
+      </div>
+
+      <aside class="related-list">
+        <h3 class="related-title">Related videos</h3>
+        ${related.map((v) => relatedItem(v)).join('')}
+      </aside>
+    </div>`;
+
+  bindWatchActions(video, seedComments.length);
 }
 
-// Format numbers (e.g., 1200 -> 1.2K)
-function formatNumber(num) {
-    if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
+function relatedItem(v) {
+  return `
+    <div class="related" data-id="${v.id}" tabindex="0" role="button" aria-label="Watch ${escapeHtml(v.title)}">
+      <div class="related-thumb">
+        <img src="${v.thumbnail}" alt="" loading="lazy" onerror="this.onerror=null;this.src=fallbackThumb(${v.id})" />
+        <span class="duration-badge">${v.duration}</span>
+      </div>
+      <div class="related-info">
+        <h4>${escapeHtml(v.title)}</h4>
+        <p>${escapeHtml(v.channel)}</p>
+        <p>${formatCount(v.views)} views · ${v.uploaded}</p>
+      </div>
+    </div>`;
+}
+
+function commentHtml(list) {
+  return list
+    .map(
+      (c) => `
+      <div class="comment">
+        <div class="avatar avatar-sm" style="--hue:${hue(c.user)}">${initial(c.user)}</div>
+        <div class="comment-body">
+          <div class="comment-head"><strong>${escapeHtml(c.user)}</strong><span>${c.time}</span></div>
+          <p class="comment-text">${escapeHtml(c.text)}</p>
+          <div class="comment-actions">${icons.likeSm}<span class="count">${formatCount(c.likes)}</span>${icons.dislikeSm}<span>Reply</span></div>
+        </div>
+      </div>`
+    )
+    .join('');
+}
+
+function bindWatchActions(video, seedCount) {
+  const likeBtn = $('#likeBtn');
+  const dislikeBtn = $('#dislikeBtn');
+  const shareBtn = $('#shareBtn');
+  const saveBtn = $('#saveBtn');
+  const subscribeBtn = $('#subscribeBtn');
+  const commentInput = $('#commentInput');
+
+  likeBtn.addEventListener('click', () => {
+    const liked = store.toggle('liked', video.id);
+    likeBtn.classList.toggle('active', liked);
+    $('.like-count', likeBtn).textContent = formatCount(video.likes + (liked ? 1 : 0));
+    if (liked) dislikeBtn.classList.remove('active');
+    toast(liked ? 'Added to Liked videos' : 'Removed from Liked videos');
+  });
+
+  dislikeBtn.addEventListener('click', () => {
+    const disliked = dislikeBtn.classList.toggle('active');
+    if (disliked && likeBtn.classList.contains('active')) {
+      likeBtn.classList.remove('active');
+      $('.like-count', likeBtn).textContent = formatCount(video.likes);
     }
-    return num.toString();
+  });
+
+  shareBtn.addEventListener('click', () => {
+    navigator.clipboard
+      .writeText(location.href)
+      .then(() => toast('Link copied to clipboard'))
+      .catch(() => toast('Could not copy link'));
+  });
+
+  saveBtn.addEventListener('click', () => {
+    const saved = store.toggle('watchLater', video.id);
+    saveBtn.classList.toggle('active', saved);
+    $('.save-label', saveBtn).textContent = saved ? 'Saved' : 'Save';
+    toast(saved ? 'Saved to Library' : 'Removed from Library');
+  });
+
+  subscribeBtn.addEventListener('click', () => {
+    const subscribed = store.toggle('subscriptions', video.channelId);
+    subscribeBtn.classList.toggle('subscribed', subscribed);
+    subscribeBtn.textContent = subscribed ? 'Subscribed' : 'Subscribe';
+    toast(subscribed ? `Subscribed to ${video.channel}` : 'Unsubscribed');
+  });
+
+  commentInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const text = commentInput.value.trim();
+    if (!text) return;
+
+    const key = 'comments.' + video.id;
+    const list = store.get(key);
+    list.unshift({ user: 'You', text, time: 'just now', likes: 0 });
+    store.set(key, list);
+
+    commentInput.value = '';
+    $('#commentList').innerHTML = commentHtml([...list, ...getCommentsForVideo(video.id)]);
+    $('#commentCount').textContent = formatCount(list.length + seedCount);
+    toast('Comment posted');
+  });
 }
 
-// Initialize on page load (modern approach)
+function initSearch() {
+  const input = $('#searchInput');
+  const form = $('#searchForm');
+  const box = $('#suggestions');
+  const mobileBtn = $('#searchMobileBtn');
+  let selected = -1;
+
+  const close = () => {
+    box.hidden = true;
+    selected = -1;
+  };
+
+  const renderItems = (items, q) => {
+    if (!items.length) return close();
+    box.innerHTML = items
+      .map(
+        (item, i) => `
+        <button class="sugg" type="button" data-i="${i}" data-text="${escapeHtml(item.text)}">
+          ${item.type === 'history' ? icons.clock : icons.search}
+          <span class="sugg-text">${highlight(item.text, q)}</span>
+          ${item.type === 'history' ? '<span class="sugg-x">×</span>' : ''}
+        </button>`
+      )
+      .join('');
+    box.hidden = false;
+  };
+
+  const update = (q) => {
+    const history = store.get('searchHistory');
+    const items = [];
+
+    history
+      .filter((h) => h.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 5)
+      .forEach((h) => items.push({ type: 'history', text: h }));
+
+    if (q) {
+      videos
+        .filter((v) => v.title.toLowerCase().includes(q.toLowerCase()))
+        .slice(0, 5)
+        .forEach((v) => items.push({ type: 'video', text: v.title }));
+    } else {
+      history.slice(0, 8).forEach((h) => items.push({ type: 'history', text: h }));
+    }
+
+    renderItems(items.slice(0, 8), q);
+  };
+
+  const submit = (q) => {
+    q = q.trim();
+    close();
+    input.blur();
+    if (!q) {
+      navigate('home');
+      return;
+    }
+    const history = store.get('searchHistory');
+    store.set('searchHistory', [q, ...history.filter((h) => h.toLowerCase() !== q.toLowerCase())].slice(0, 8));
+    renderSearch(q);
+  };
+
+  input.addEventListener('input', debounce(() => update(input.value.trim()), 200));
+  input.addEventListener('focus', () => update(input.value.trim()));
+
+  input.addEventListener('keydown', (e) => {
+    const items = $$('.sugg', box);
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!items.length) return update(input.value.trim());
+      selected =
+        e.key === 'ArrowDown' ? Math.min(selected + 1, items.length - 1) : Math.max(selected - 1, 0);
+      items.forEach((b, i) => b.classList.toggle('selected', i === selected));
+      items[selected]?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selected > -1 && items[selected]) {
+        input.value = items[selected].dataset.text;
+        submit(items[selected].dataset.text);
+      } else {
+        submit(input.value);
+      }
+    } else if (e.key === 'Escape') {
+      close();
+      input.blur();
+    }
+  });
+
+  box.addEventListener('click', (e) => {
+    const remove = e.target.closest('.sugg-x');
+    if (remove) {
+      const text = e.target.closest('.sugg').dataset.text;
+      store.set(
+        'searchHistory',
+        store.get('searchHistory').filter((h) => h !== text)
+      );
+      update(input.value.trim());
+      return;
+    }
+    const item = e.target.closest('.sugg');
+    if (item) {
+      input.value = item.dataset.text;
+      submit(item.dataset.text);
+    }
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submit(input.value);
+  });
+
+  mobileBtn.addEventListener('click', () => {
+    document.body.classList.toggle('search-open');
+    if (document.body.classList.contains('search-open')) input.focus();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!$('#search').contains(e.target)) close();
+  });
+}
+
+function highlight(text, q) {
+  const safe = escapeHtml(text);
+  if (!q) return safe;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i === -1) return safe;
+  return (
+    escapeHtml(text.slice(0, i)) +
+    '<mark>' +
+    escapeHtml(text.slice(i, i + q.length)) +
+    '</mark>' +
+    escapeHtml(text.slice(i + q.length))
+  );
+}
+
+function initTheme() {
+  const btn = $('#themeBtn');
+  const apply = (theme) => {
+    document.documentElement.dataset.theme = theme;
+    btn.innerHTML = theme === 'dark' ? icons.sun : icons.moon;
+    btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+  };
+  apply(localStorage.getItem('ytc.theme') || 'dark');
+  btn.addEventListener('click', () => {
+    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('ytc.theme', next);
+    apply(next);
+  });
+}
+
+function initSidebar() {
+  const menuBtn = $('#menuBtn');
+  const overlay = $('#overlay');
+  const isMobile = () => window.innerWidth <= 768;
+
+  const applyMini = () => {
+    document.body.classList.toggle('sidebar-mini', store.get('sidebarMini', false) && !isMobile());
+  };
+
+  applyMini();
+
+  menuBtn.addEventListener('click', () => {
+    if (isMobile()) {
+      const open = document.body.classList.toggle('sidebar-open');
+      overlay.classList.toggle('active', open);
+    } else {
+      store.set('sidebarMini', !store.get('sidebarMini', false));
+      applyMini();
+    }
+  });
+
+  overlay.addEventListener('click', () => {
+    document.body.classList.remove('sidebar-open');
+    overlay.classList.remove('active');
+  });
+
+  window.addEventListener('resize', debounce(applyMini, 150));
+}
+
+function initDelegation() {
+  const openFrom = (el) => {
+    const id = +el.dataset.id;
+    store.push('history', id);
+    navigate('watch', id);
+  };
+
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.card[data-id]');
+    if (card) return openFrom(card);
+    const related = e.target.closest('.related[data-id]');
+    if (related) openFrom(related);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target.closest('.card[data-id], .related[data-id]');
+    if (el) {
+      e.preventDefault();
+      openFrom(el);
+    }
+  });
+}
+
+function toast(message) {
+  const el = $('#toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    // Setup sidebar toggle on all pages (Week 7)
-    setupSidebarToggle();
-    
-    // Check if in hash route mode
-    const route = parseRoute();
-    
-    if (route.page === 'video' && document.getElementById('videoFrame')) {
-        // Video page - load with hash routing
-        loadVideoDetails();
-        setupLikeButton();
-        setupSubscribeButton();
-        setupRelatedVideosListener();
-        setupHashRouting();
-    } else if (videoGrid) {
-        // Home page
-        showSkeletonLoading(8);
-        
-        setTimeout(() => {
-            renderVideos();
-            handleSearch();
-            setupLazyLoading();
-            setupCategoryFilters();
-            setupVideoCardListeners(); // Modern event delegation
-        }, 500);
-    }
-    
-    // Handle initial hash load
-    if (window.location.hash) {
-        const route = parseRoute();
-        if (route.page === 'video') {
-            loadVideoDetails();
-        }
-    }
+  initTheme();
+  initSidebar();
+  initSearch();
+  initDelegation();
+  window.addEventListener('hashchange', resolveRoute);
+  resolveRoute();
 });
-
-// Setup category filter buttons
-function setupCategoryFilters() {
-    const categoryButtons = document.querySelectorAll('.category-btn');
-    
-    categoryButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Remove active class from all buttons
-            categoryButtons.forEach(b => b.classList.remove('active'));
-            // Add active class to clicked button
-            btn.classList.add('active');
-            
-            // Get category from button text
-            const category = btn.textContent;
-            
-            // Map button text to category values
-            const categoryMap = {
-                'All': 'all',
-                'Web Development': 'Web Dev',
-                'JavaScript': 'Programming',
-                'Python': 'Programming',
-                'CSS': 'Web Dev',
-                'React': 'Web Dev',
-                'Tutorials': 'all'
-            };
-            
-            filterByCategory(categoryMap[category] || category);
-        });
-    });
-}
-
-// =============================================
-// Week 7: Sidebar Navigation Toggle System
-// =============================================
-
-// Sidebar state management
-const SidebarState = {
-    STORAGE_KEY: 'youtube_clone_sidebar_collapsed',
-    
-    isCollapsed() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || false;
-        } catch {
-            return false;
-        }
-    },
-    
-    setCollapsed(collapsed) {
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(collapsed));
-    }
-};
-
-// Get current screen size breakpoint
-function getBreakpoint() {
-    const width = window.innerWidth;
-    if (width <= 768) return 'mobile';
-    if (width <= 992) return 'tablet';
-    return 'desktop';
-}
-
-// Setup sidebar toggle functionality
-function setupSidebarToggle() {
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    const mainContainer = document.querySelector('.main-container');
-    
-    if (!menuToggle || !sidebar) return;
-    
-    let sidebarOpen = false; // For mobile/tablet
-    
-    // Restore desktop sidebar state
-    if (getBreakpoint() === 'desktop' && SidebarState.isCollapsed()) {
-        sidebar.classList.add('collapsed');
-        if (mainContainer) mainContainer.classList.add('sidebar-collapsed');
-    }
-    
-    // Toggle sidebar based on current breakpoint
-    function toggleSidebar() {
-        const breakpoint = getBreakpoint();
-        
-        if (breakpoint === 'mobile') {
-            // Mobile: slide sidebar in/out
-            sidebarOpen = !sidebarOpen;
-            sidebar.classList.toggle('mobile-open', sidebarOpen);
-            if (overlay) overlay.classList.toggle('active', sidebarOpen);
-            menuToggle.classList.toggle('active', sidebarOpen);
-            menuToggle.setAttribute('aria-expanded', sidebarOpen.toString());
-            
-            // Prevent body scroll when sidebar is open
-            document.body.style.overflow = sidebarOpen ? 'hidden' : '';
-            
-        } else if (breakpoint === 'tablet') {
-            // Tablet: expand sidebar overlay on top of content
-            sidebarOpen = !sidebarOpen;
-            sidebar.classList.toggle('expanded', sidebarOpen);
-            if (overlay) overlay.classList.toggle('active', sidebarOpen);
-            menuToggle.classList.toggle('active', sidebarOpen);
-            menuToggle.setAttribute('aria-expanded', sidebarOpen.toString());
-            
-        } else {
-            // Desktop: collapse/expand sidebar inline
-            const isCollapsed = sidebar.classList.toggle('collapsed');
-            if (mainContainer) mainContainer.classList.toggle('sidebar-collapsed', isCollapsed);
-            SidebarState.setCollapsed(isCollapsed);
-            menuToggle.setAttribute('aria-expanded', (!isCollapsed).toString());
-        }
-    }
-    
-    // Close sidebar (for mobile/tablet)
-    function closeSidebar() {
-        sidebarOpen = false;
-        sidebar.classList.remove('mobile-open', 'expanded');
-        if (overlay) overlay.classList.remove('active');
-        menuToggle.classList.remove('active');
-        menuToggle.setAttribute('aria-expanded', 'false');
-        document.body.style.overflow = '';
-    }
-    
-    // Click handler for menu toggle
-    menuToggle.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleSidebar();
-    });
-    
-    // Keyboard support for menu toggle (Enter/Space)
-    menuToggle.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleSidebar();
-        }
-    });
-    
-    // Click overlay to close sidebar
-    if (overlay) {
-        overlay.addEventListener('click', closeSidebar);
-    }
-    
-    // Close sidebar on Escape key
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && sidebarOpen) {
-            closeSidebar();
-        }
-    });
-    
-    // Close mobile/tablet sidebar when a link is clicked
-    sidebar.addEventListener('click', (e) => {
-        const link = e.target.closest('.sidebar-link');
-        if (link && (getBreakpoint() === 'mobile' || getBreakpoint() === 'tablet')) {
-            closeSidebar();
-        }
-    });
-    
-    // Handle window resize - reset sidebar state when crossing breakpoints
-    let lastBreakpoint = getBreakpoint();
-    
-    window.addEventListener('resize', debounce(() => {
-        const currentBreakpoint = getBreakpoint();
-        
-        if (currentBreakpoint !== lastBreakpoint) {
-            // Reset mobile/tablet states when changing breakpoints
-            sidebar.classList.remove('mobile-open', 'expanded');
-            if (overlay) overlay.classList.remove('active');
-            menuToggle.classList.remove('active');
-            document.body.style.overflow = '';
-            sidebarOpen = false;
-            
-            // Restore desktop collapsed state
-            if (currentBreakpoint === 'desktop') {
-                const isCollapsed = SidebarState.isCollapsed();
-                sidebar.classList.toggle('collapsed', isCollapsed);
-                if (mainContainer) mainContainer.classList.toggle('sidebar-collapsed', isCollapsed);
-            } else {
-                sidebar.classList.remove('collapsed');
-                if (mainContainer) mainContainer.classList.remove('sidebar-collapsed');
-            }
-            
-            lastBreakpoint = currentBreakpoint;
-        }
-    }, 150));
-}

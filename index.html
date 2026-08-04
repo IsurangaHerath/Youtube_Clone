@@ -1,93 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Clone - Home</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Clone</title>
+  <meta name="description" content="A modern YouTube clone built with vanilla HTML, CSS and JavaScript." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <!-- Header with logo and search -->
-    <header class="header">
-        <div class="header-left">
-            <div class="menu-icon" id="menuToggle" role="button" tabindex="0" aria-label="Toggle sidebar" aria-expanded="false">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-            <a href="index.html" class="logo">
-                <span class="logo-icon">▶</span>
-                YouTube
-            </a>
-        </div>
-        
-        <div class="search-container" id="searchContainer">
-            <input type="text" class="search-bar" id="searchInput" placeholder="Search" autocomplete="off">
-            <button class="search-button" id="searchBtn">
-                <span>🔍</span>
-            </button>
-            <div class="search-suggestions" id="searchSuggestions"></div>
-        </div>
-        
-        <div class="header-right">
-            <span class="upload-icon">📹</span>
-            <span class="notification-icon">🔔</span>
-            <span class="user-avatar">U</span>
-        </div>
-    </header>
-
-    <!-- Main layout with sidebar -->
-    <!-- Sidebar overlay for mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <div class="main-container">
-        <nav class="sidebar" id="sidebar" aria-label="Main navigation">
-            <a href="index.html" class="sidebar-link active">
-                <span class="link-icon">🏠</span>
-                <span class="link-text">Home</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span class="link-icon">🔥</span>
-                <span class="link-text">Trending</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span class="link-icon">📋</span>
-                <span class="link-text">Subscriptions</span>
-            </a>
-            <hr class="sidebar-divider">
-            <a href="#" class="sidebar-link">
-                <span class="link-icon">📁</span>
-                <span class="link-text">Library</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span class="link-icon">🕐</span>
-                <span class="link-text">History</span>
-            </a>
-            <a href="#" class="sidebar-link">
-                <span class="link-icon">❤️</span>
-                <span class="link-text">Liked Videos</span>
-            </a>
-        </nav>
-
-        <main class="content">
-            <!-- Category filters -->
-            <div class="categories">
-                <button class="category-btn active">All</button>
-                <button class="category-btn">Web Development</button>
-                <button class="category-btn">JavaScript</button>
-                <button class="category-btn">Python</button>
-                <button class="category-btn">CSS</button>
-                <button class="category-btn">React</button>
-                <button class="category-btn">Tutorials</button>
-            </div>
-
-            <!-- Video grid - populated by JavaScript -->
-            <div class="video-grid" id="videoGrid"></div>
-        </main>
+  <header class="header">
+    <div class="header-left">
+      <button class="icon-btn" id="menuBtn" type="button" aria-label="Toggle menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a class="logo" href="#/home" aria-label="YouTube Clone home">
+        <svg class="logo-badge" width="30" height="22" viewBox="0 0 30 22" aria-hidden="true">
+          <rect width="30" height="22" rx="5" fill="#ff0000"/>
+          <path d="M12 6.5l8 4.5-8 4.5z" fill="#fff"/>
+        </svg>
+        <span>YouTube</span>
+      </a>
     </div>
 
-    <script src="data.js"></script>
-    <script src="script.js"></script>
+    <div class="search" id="search">
+      <form class="search-form" id="searchForm" autocomplete="off" role="search">
+        <input type="text" id="searchInput" placeholder="Search" aria-label="Search" />
+        <button type="submit" class="search-go" aria-label="Submit search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+      </form>
+      <div class="suggestions" id="suggestions" hidden></div>
+    </div>
+
+    <div class="header-right">
+      <button class="icon-btn" id="searchMobileBtn" type="button" aria-label="Search">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme"></button>
+      <button class="icon-btn hide-mobile" type="button" aria-label="Create">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="13" height="12" rx="2"/><path d="m15 10 7-4v12l-7-4"/></svg>
+      </button>
+      <button class="icon-btn hide-mobile" type="button" aria-label="Notifications">
+        <span class="badge-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <span class="badge">9+</span>
+        </span>
+      </button>
+      <div class="avatar header-avatar" style="--hue: 200" tabindex="0" aria-label="Your profile">Y</div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+      <a class="side-link active" href="#/home" data-route="home">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+        <span class="side-label">Home</span>
+      </a>
+      <a class="side-link" href="#/trending" data-route="trending">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.5 0 7-2.5 7-6 0-2.5-1.5-4.5-3-6 .2 1.5-.5 2.5-1.5 3-.3-3-2-6-4.5-8 .3 2.5-.7 4.5-2.5 6-1.5 1.3-2.5 3-2.5 5 0 3.5 2.5 6 7 6z"/></svg>
+        <span class="side-label">Trending</span>
+      </a>
+      <a class="side-link" href="#/subscriptions" data-route="subscriptions">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="m10 9 5 2.5-5 2.5z"/></svg>
+        <span class="side-label">Subscriptions</span>
+      </a>
+      <hr class="side-divider" />
+      <a class="side-link" href="#/library" data-route="library">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3h16v18H4z"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
+        <span class="side-label">Library</span>
+      </a>
+      <a class="side-link" href="#/history" data-route="history">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span class="side-label">History</span>
+      </a>
+      <a class="side-link" href="#/liked" data-route="liked">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5C6 15 4 12 4 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 2.5c0 3.5-2 6.5-8 12z"/></svg>
+        <span class="side-label">Liked videos</span>
+      </a>
+    </nav>
+
+    <div class="overlay" id="overlay" aria-hidden="true"></div>
+
+    <main class="main" id="app"></main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
