@@ -71,4 +71,4 @@ Then open `http://localhost:8000`. You can also just double-click `index.html`.
 
 ## License
 
-MIT — free to use for learning and for your portfolio.
+MIT
